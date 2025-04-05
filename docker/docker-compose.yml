@@ -1,0 +1,168 @@
+version: '3.8'
+
+services:
+  namenode:
+    image: bde2020/hadoop-namenode:latest
+    container_name: namenode
+    environment:
+      - CLUSTER_NAME=hadoop_cluster
+    ports:
+      - "9870:9870"  # Web UI
+      - "9000:9000"  # HDFS
+    volumes:
+      - namenode_data:/hadoop/dfs/name
+    networks:
+      - hadoop_network
+
+  datanode:
+    image: bde2020/hadoop-datanode:latest
+    container_name: datanode
+    environment:
+      - CORE_CONF_fs_defaultFS=hdfs://namenode:9000
+    ports:
+      - "9864:9864"  # Web UI
+    volumes:
+      - datanode_data:/hadoop/dfs/data
+    depends_on:
+      - namenode
+    networks:
+      - hadoop_network
+
+  # Spark with 3 workers
+  spark:
+    image: bitnami/spark:3.1.2
+    user: root
+    hostname: spark
+    environment:
+      - SPARK_MODE=master
+      - SPARK_RPC_AUTHENTICATION_ENABLED=no
+      - SPARK_RPC_ENCRYPTION_ENABLED=no
+      - SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED=no
+      - SPARK_SSL_ENABLED=no
+    volumes:
+      - ../spark/app:/usr/local/spark/app
+      - ../spark/resources:/usr/local/spark/resources
+    ports:
+      - "8181:8080"
+      - "7077:7077"
+    networks:
+      - hadoop_network
+
+  spark-worker-1:
+    image: bitnami/spark:3.1.2
+    user: root
+    environment:
+      - SPARK_MODE=worker
+      - SPARK_MASTER_URL=spark://spark:7077 # MUST config in Airflow Connection
+      - SPARK_WORKER_MEMORY=1G
+      - SPARK_WORKER_CORES=1
+      - SPARK_RPC_AUTHENTICATION_ENABLED=no
+      - SPARK_RPC_ENCRYPTION_ENABLED=no
+      - SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED=no
+      - SPARK_SSL_ENABLED=no
+    volumes:
+      - ../spark/app:/usr/local/spark/app
+      - ../spark/resources:/usr/local/spark/resources
+    networks:
+      - hadoop_network
+
+
+  spark-worker-2:
+    image: bitnami/spark:3.0.1
+    user: root
+    environment:
+      - SPARK_MODE=worker
+      - SPARK_MASTER_URL=spark://spark:7077
+      - SPARK_WORKER_MEMORY=1G
+      - SPARK_WORKER_CORES=1
+      - SPARK_RPC_AUTHENTICATION_ENABLED=no
+      - SPARK_RPC_ENCRYPTION_ENABLED=no
+      - SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED=no
+      - SPARK_SSL_ENABLED=no
+    volumes:
+      - ../spark/app:/usr/local/spark/app
+      - ../spark/resources:/usr/local/spark/resources
+    networks:
+      - hadoop_network
+
+  postgres:
+    image: postgres:latest
+    container_name: postgres_dw
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: airflow
+      POSTGRES_DB: data_warehouse
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - hadoop_network
+
+  mysql:
+    image: mysql:latest
+    container_name: mysql_source
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: source_db
+      MYSQL_USER: etl
+      MYSQL_PASSWORD: etl
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./mysql-init:/docker-entrypoint-initdb.d  # Chứa script SQL hoặc CSV import
+    networks:
+      - hadoop_network
+
+  airflow-webserver:
+    image: apache/airflow:latest
+    container_name: airflow_webserver
+    environment:
+      - LOAD_EX=y
+      - EXECUTOR=LocalExecutor
+    ports:
+      - "8081:8080"
+    volumes:
+      - ./airflow-dags:/opt/airflow/dags  # Mount DAGs ETL
+    depends_on:
+      - postgres
+    networks:
+      - hadoop_network
+
+  airflow-scheduler:
+    image: apache/airflow:latest
+    container_name: airflow_scheduler
+    command: scheduler
+    environment:
+      - EXECUTOR=LocalExecutor
+    volumes:
+      - ./airflow-dags:/opt/airflow/dags
+    depends_on:
+      - airflow-webserver
+    networks:
+      - hadoop_network
+
+  jupyter:
+    image: jupyter/pyspark-notebook:latest
+    container_name: jupyter_notebook
+    ports:
+      - "8888:8888"
+    environment:
+      - SPARK_MASTER=spark://spark-master:7077
+    volumes:
+      - ./notebooks:/home/jovyan/work  # Folder chứa mã Jupyter
+    depends_on:
+      - spark-master
+    networks:
+      - hadoop_network
+
+volumes:
+  namenode_data:
+  datanode_data:
+  postgres_data:
+  mysql_data:
+
+networks:
+  hadoop_network:
+    driver: bridge
