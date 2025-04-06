@@ -38,14 +38,13 @@ services:
     image: bitnami/spark:3.1.2
     user: root
     hostname: spark
+    container_name: spark
     environment:
       - SPARK_MODE=master
       - SPARK_RPC_AUTHENTICATION_ENABLED=no
       - SPARK_RPC_ENCRYPTION_ENABLED=no
       - SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED=no
       - SPARK_SSL_ENABLED=no
-      - PYSPARK_PYTHON=/usr/bin/python3
-      - PYSPARK_DRIVER_PYTHON=/usr/bin/python3
     volumes:
       - ../spark/app:/usr/local/spark/app
       - ../spark/resources:/usr/local/spark/resources
@@ -67,8 +66,6 @@ services:
       - SPARK_RPC_ENCRYPTION_ENABLED=no
       - SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED=no
       - SPARK_SSL_ENABLED=no
-      - PYSPARK_PYTHON=/usr/bin/python3
-      - PYSPARK_DRIVER_PYTHON=/usr/bin/python3
     volumes:
       - ../spark/app:/usr/local/spark/app
       - ../spark/resources:/usr/local/spark/resources
@@ -88,8 +85,6 @@ services:
       - SPARK_RPC_ENCRYPTION_ENABLED=no
       - SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED=no
       - SPARK_SSL_ENABLED=no
-      - PYSPARK_PYTHON=/usr/bin/python3
-      - PYSPARK_DRIVER_PYTHON=/usr/bin/python3
     volumes:
       - ../spark/app:/usr/local/spark/app
       - ../spark/resources:/usr/local/spark/resources
@@ -102,11 +97,16 @@ services:
     environment:
       POSTGRES_USER: airflow
       POSTGRES_PASSWORD: airflow
-      POSTGRES_DB: data_warehouse
+      POSTGRES_DB: airflow
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "airflow"]
+      interval: 10s
+      retries: 5
+    restart: always
     networks:
       - hadoop_network
 
@@ -130,15 +130,22 @@ services:
   airflow-webserver:
     image: apache/airflow:latest
     container_name: airflow_webserver
+    command: webserver
     environment:
       - LOAD_EX=y
       - EXECUTOR=LocalExecutor
+      - AIRFLOW__CORE__LOAD_EXAMPLES=false
+      - AIRFLOW__WEBSERVER__SECRET_KEY=airflow_secret_key
+      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow:airflow@postgres/airflow
     ports:
       - "8081:8080"
     volumes:
-      - ./airflow-dags:/opt/airflow/dags  # Mount DAGs ETL
+      - e:/P1/airflow-dags:/opt/airflow/dags
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
+      airflow-init:
+        condition: service_completed_successfully
     networks:
       - hadoop_network
 
@@ -148,15 +155,40 @@ services:
     command: scheduler
     environment:
       - EXECUTOR=LocalExecutor
+      - AIRFLOW__CORE__LOAD_EXAMPLES=false
+      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow:airflow@postgres/airflow
     volumes:
-      - ./airflow-dags:/opt/airflow/dags
+      - e:/P1/airflow-dags:/opt/airflow/dags
     depends_on:
-      - airflow-webserver
+      airflow-webserver:
+        condition: service_started
+      airflow-init:
+        condition: service_completed_successfully
+    networks:
+        - hadoop_network
+
+  airflow-init:
+    image: apache/airflow:latest
+    container_name: airflow_init
+    entrypoint: /bin/bash
+    command: -c "
+      airflow db migrate &&
+      airflow users create 
+      --username admin 
+      --password admin 
+      --firstname Admin 
+      --lastname User 
+      --role Admin 
+      --email admin@example.com
+      "
+    environment:
+      - EXECUTOR=LocalExecutor
+      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow:airflow@postgres/airflow
+    depends_on:
+      - postgres
     networks:
       - hadoop_network
 
-
-  #Jupyter notebook
   jupyter-spark:
     image: jupyter/pyspark-notebook:spark-3.1.2
     container_name: jupyter
@@ -164,10 +196,9 @@ services:
       - "8888:8888"
       - "4040-4080:4040-4080"
     volumes:
-      - ../notebooks:/home/work #developement folder
+      - ../notebooks:/home/work
       - ../spark/resources/data:/home/work/data/
       - ../spark/resources/jars:/home/work/jars/
-
     networks:
       - hadoop_network
 
