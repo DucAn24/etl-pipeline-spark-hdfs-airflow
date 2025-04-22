@@ -3,6 +3,7 @@
 
 This project implements an end-to-end ETL pipeline using Apache Spark, Airflow, and Docker. It extracts data from MySQL sources, transforms data from CRM & ERP systems, creates a dimensional model, and loads the data into a PostgreSQL data warehouse.
 ## 🏗️ Data Architecture
+![data_architecture](https://github.com/user-attachments/assets/6f41f133-e586-4d12-9f54-ceb23476f7ab)
 
 
 
