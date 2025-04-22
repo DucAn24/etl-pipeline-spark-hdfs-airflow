@@ -1,3 +1,8 @@
 mysql.connector
 pandas
 mysql-connector-python
+apache-airflow-providers-apache-spark
+apache-airflow-providers-mysql
+apache-airflow-providers-postgres
+hdfs
+pymysql

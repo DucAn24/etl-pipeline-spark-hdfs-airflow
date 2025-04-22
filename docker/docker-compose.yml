@@ -34,20 +34,22 @@ services:
       - hadoop_network
 
   python:
-    image: python:3.9
+    image: python:3.10
     container_name: python3
     working_dir: /usr/local/spark/app
     volumes:
       - ../spark/app:/usr/local/spark/app
       - ../spark/resources:/usr/local/spark/resources
-      - ../requirements.txt:/usr/local/spark/resources/jars/requirements.txt
+      - ../datasets/source_crm:/usr/local/datasets/source_crm
+      - ../requirements.txt:/usr/local/requirements.txt
     networks:
       - hadoop_network
     command: >
         bash -c "
-          pip install -r /usr/local/spark/resources/jars/requirements.txt &&
+          pip install -r /usr/local/requirements.txt &&
           tail -f /dev/null
         "
+
         
   # Spark with 3 workers
   spark:
@@ -144,7 +146,9 @@ services:
       - hadoop_network
 
   airflow-webserver:
-    image: apache/airflow:latest
+    build:
+      context: ..
+      dockerfile: Dockerfile
     container_name: airflow_webserver
     command: webserver
     environment:
@@ -156,7 +160,9 @@ services:
     ports:
       - "8081:8080"
     volumes:
-      - e:/P1/airflow-dags:/opt/airflow/dags
+      - ../airflow-dags:/opt/airflow/dags
+      - ../datasets/source_crm:/usr/local/datasets/source_crm
+      - ../spark/app:/usr/local/spark/app
     depends_on:
       postgres:
         condition: service_healthy
@@ -166,15 +172,20 @@ services:
       - hadoop_network
 
   airflow-scheduler:
-    image: apache/airflow:latest
+    build:
+      context: ..
+      dockerfile: Dockerfile
     container_name: airflow_scheduler
     command: scheduler
     environment:
       - EXECUTOR=LocalExecutor
       - AIRFLOW__CORE__LOAD_EXAMPLES=false
+      - AIRFLOW__WEBSERVER__SECRET_KEY=airflow_secret_key
       - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow:airflow@postgres/airflow
     volumes:
-      - e:/P1/airflow-dags:/opt/airflow/dags
+      - ../airflow-dags:/opt/airflow/dags
+      - ../datasets/source_crm:/usr/local/datasets/source_crm
+      - ../spark/app:/usr/local/spark/app
     depends_on:
       airflow-webserver:
         condition: service_started
@@ -184,7 +195,9 @@ services:
         - hadoop_network
 
   airflow-init:
-    image: apache/airflow:latest
+    build:
+      context: ..
+      dockerfile: Dockerfile
     container_name: airflow_init
     entrypoint: /bin/bash
     command: -c "
@@ -199,6 +212,7 @@ services:
       "
     environment:
       - EXECUTOR=LocalExecutor
+      - AIRFLOW__WEBSERVER__SECRET_KEY=airflow_secret_key
       - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow:airflow@postgres/airflow
     depends_on:
       - postgres
