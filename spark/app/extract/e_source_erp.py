@@ -1,8 +1,12 @@
 import os
+import sys
 import mysql.connector
 import csv
 import subprocess
+import traceback
 from datetime import datetime
+from hdfs import InsecureClient
+import pymysql  # Adding PyMySQL for Airflow compatibility
 
 def ensure_dir(directory):
     """Create directory if it doesn't exist"""
@@ -44,31 +48,131 @@ def extract_mysql_table(conn, table_name, output_dir):
         cursor.close()
 
 def load_to_hdfs(local_file, hdfs_path):
-    """
-    Load a local file to HDFS using Docker exec
-    """
+    """Load a local file to HDFS using WebHDFS API or HDFS client"""
     try:
+        # Create HDFS client
+        hdfs_client = InsecureClient('http://namenode:9870', user='root')
+        
         filename = os.path.basename(local_file)
         hdfs_file = f"{hdfs_path}/{filename}"
         
-        # First copy the file to the namenode container
-        copy_cmd = ["docker", "cp", local_file, f"namenode:/tmp/{filename}"]
-        subprocess.run(copy_cmd, check=True)
+        # Make sure the directory exists
+        hdfs_client.makedirs(hdfs_path)
         
-        # Create directory in HDFS (will not error if it already exists)
-        mkdir_cmd = ["docker", "exec", "namenode", 
-                    "hdfs", "dfs", "-mkdir", "-p", hdfs_path]
-        subprocess.run(mkdir_cmd, check=True)
-
-        # Then use docker exec to run the hdfs command
-        hdfs_cmd = ["docker", "exec", "namenode", 
-                   "hdfs", "dfs", "-put", "-f", f"/tmp/{filename}", hdfs_file]
-        subprocess.run(hdfs_cmd, check=True)
+        # Upload the file to HDFS
+        with open(local_file, 'rb') as local_f:
+            hdfs_client.write(hdfs_file, local_f, overwrite=True)
         
         print(f"Successfully loaded {local_file} to {hdfs_file}")
         return True
-    except subprocess.CalledProcessError as e:
+    except Exception as e:
         print(f"Error loading to HDFS: {str(e)}")
+        return False
+
+def extract_erp_data(**kwargs):
+    """Extract ERP data directly within the Airflow container"""
+    try:
+        print("Starting MySQL extraction process...")
+        
+        # MySQL connection details
+        mysql_config = {
+            "host": "mysql_source",  # Docker container name
+            "user": "etl",
+            "password": "etl",
+            "database": "source_erp"
+        }
+        
+        # Destination directory for extracted files (local staging)
+        extract_dir = "/tmp/airflow_data/"   # Thư mục /tmp thường có quyền ghi
+        erp_extract_dir = os.path.join(extract_dir, "source_erp")
+        
+        # HDFS destination path
+        hdfs_path_erp = "/raw/source_erp"
+        
+        print(f"Attempting to connect to MySQL at {mysql_config['host']} as {mysql_config['user']}...")
+        
+        # Try connection with different auth methods
+        try:
+            # First try with mysql_native_password
+            conn = pymysql.connect(
+                host=mysql_config["host"],
+                user=mysql_config["user"],
+                password=mysql_config["password"],
+                database=mysql_config["database"],
+                auth_plugin='mysql_native_password'
+            )
+            print("Connected to MySQL successfully with mysql_native_password")
+        except Exception as e1:
+            print(f"Failed to connect with mysql_native_password: {str(e1)}")
+            try:
+                # Then try without auth_plugin
+                conn = pymysql.connect(
+                    host=mysql_config["host"],
+                    user=mysql_config["user"],
+                    password=mysql_config["password"],
+                    database=mysql_config["database"]
+                )
+                print("Connected to MySQL successfully without specifying auth_plugin")
+            except Exception as e2:
+                print(f"Failed to connect without auth_plugin: {str(e2)}")
+                # Last resort - try localhost instead of service name
+                try:
+                    conn = pymysql.connect(
+                        host="localhost",
+                        user=mysql_config["user"],
+                        password=mysql_config["password"],
+                        database=mysql_config["database"]
+                    )
+                    print("Connected to MySQL successfully using localhost")
+                except Exception as e3:
+                    print(f"All connection attempts failed: {str(e3)}")
+                    raise Exception("Could not establish MySQL connection after multiple attempts")
+        
+        # Get list of tables
+        print("Getting list of tables...")
+        cursor = conn.cursor()
+        cursor.execute("SHOW TABLES")
+        tables = [table[0] for table in cursor.fetchall()]
+        cursor.close()
+        
+        if not tables:
+            print("Warning: No tables found in the database!")
+        else:
+            print(f"Found {len(tables)} tables: {', '.join(tables)}")
+        
+        # Create extract directory
+        ensure_dir(erp_extract_dir)
+        print(f"Using extract directory: {erp_extract_dir}")
+        
+        # Extract each table and load to HDFS
+        success_count = 0
+        for table in tables:
+            print(f"Processing table: {table}")
+            # Extract to local staging
+            local_file = extract_mysql_table(conn, table, erp_extract_dir)
+            
+            if local_file:
+                print(f"Table {table} extracted to local staging successfully: {local_file}")
+                
+                # Load to HDFS
+                result = load_to_hdfs(local_file, hdfs_path_erp)
+                if result:
+                    print(f"Table {table} loaded to HDFS successfully")
+                    success_count += 1
+                else:
+                    print(f"Failed to load table {table} to HDFS")
+            else:
+                print(f"Failed to extract table {table}")
+        
+        print(f"Successfully extracted and loaded {success_count}/{len(tables)} tables")
+        
+        # Close connection
+        conn.close()
+        print("MySQL connection closed")
+        return success_count == len(tables) and len(tables) > 0
+    except Exception as e:
+        print(f"Error in extract_erp_data: {str(e)}")
+        print(f"Exception traceback: {traceback.format_exc()}")
         return False
 
 def extract_all_tables(host, user, password, database, extract_dir, hdfs_path):
