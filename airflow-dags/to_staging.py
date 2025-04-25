@@ -6,8 +6,6 @@ import sys
 import os
 sys.path.append('/usr/local/spark/app')
 
-# Import extraction functions from the module
-#from extract_functions import extract_crm_data, extract_erp_data, check_hdfs_data
 
 from utils.hdfs_utils import check_hdfs_data
 from extract.e_source_crm import extract_crm_data
@@ -23,7 +21,7 @@ default_args = {
     'email_on_failure': False,
     'email_on_retry': False,
     'retries': 1,
-    'retry_delay': timedelta(minutes=5),
+    'retry_delay': timedelta(minutes=1),
 }
 
 with DAG(
