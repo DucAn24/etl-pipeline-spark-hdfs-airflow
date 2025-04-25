@@ -50,65 +50,6 @@ services:
           tail -f /dev/null
         "
 
-        
-  # Spark with 3 workers
-  spark:
-    image: bitnami/spark:3.1.2
-    user: root
-    hostname: spark
-    container_name: spark
-    environment:
-      - SPARK_MODE=master
-      - SPARK_RPC_AUTHENTICATION_ENABLED=no
-      - SPARK_RPC_ENCRYPTION_ENABLED=no
-      - SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED=no
-      - SPARK_SSL_ENABLED=no
-    volumes:
-      - ../spark/app:/usr/local/spark/app
-      - ../spark/resources:/usr/local/spark/resources
-    ports:
-      - "8181:8080"
-      - "7077:7077"
-    networks:
-      - hadoop_network
-
-  spark-worker-1:
-    image: bitnami/spark:3.1.2
-    user: root
-    environment:
-      - SPARK_MODE=worker
-      - SPARK_MASTER_URL=spark://spark:7077 # MUST config in Airflow Connection
-      - SPARK_WORKER_MEMORY=1G
-      - SPARK_WORKER_CORES=1
-      - SPARK_RPC_AUTHENTICATION_ENABLED=no
-      - SPARK_RPC_ENCRYPTION_ENABLED=no
-      - SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED=no
-      - SPARK_SSL_ENABLED=no
-    volumes:
-      - ../spark/app:/usr/local/spark/app
-      - ../spark/resources:/usr/local/spark/resources
-    networks:
-      - hadoop_network
-
-
-  spark-worker-2:
-    image: bitnami/spark:3.1.2
-    user: root
-    environment:
-      - SPARK_MODE=worker
-      - SPARK_MASTER_URL=spark://spark:7077
-      - SPARK_WORKER_MEMORY=1G
-      - SPARK_WORKER_CORES=1
-      - SPARK_RPC_AUTHENTICATION_ENABLED=no
-      - SPARK_RPC_ENCRYPTION_ENABLED=no
-      - SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED=no
-      - SPARK_SSL_ENABLED=no
-    volumes:
-      - ../spark/app:/usr/local/spark/app
-      - ../spark/resources:/usr/local/spark/resources
-    networks:
-      - hadoop_network
-
   postgres:
     image: postgres:latest
     container_name: postgres_dw
@@ -144,6 +85,7 @@ services:
       - ../datasets/source_erp:/var/lib/mysql-files  # Chứa file CSV để import vào MySQL
     networks:
       - hadoop_network
+
 
   airflow-webserver:
     build:
@@ -199,16 +141,18 @@ services:
       context: ..
       dockerfile: Dockerfile
     container_name: airflow_init
+    # Run db init and user creation via default entrypoint
     entrypoint: /bin/bash
     command: -c "
-      airflow db migrate &&
-      airflow users create 
-      --username admin 
-      --password admin 
-      --firstname Admin 
-      --lastname User 
-      --role Admin 
-      --email admin@example.com
+      sleep 10 &&
+      airflow db init &&
+      airflow users create \
+        --username admin \
+        --password admin \
+        --firstname Admin \
+        --lastname User \
+        --role Admin \
+        --email admin@example.com
       "
     environment:
       - EXECUTOR=LocalExecutor
@@ -219,8 +163,97 @@ services:
     networks:
       - hadoop_network
 
+  # Service to set up connections
+  airflow-setup:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    container_name: airflow_setup
+    entrypoint: /bin/bash
+    command: -c "
+      sleep 60 &&
+      echo 'Creating Spark connection...' &&
+      airflow connections delete spark_default || true &&
+      airflow connections add 'spark_default' \
+        --conn-type 'spark' \
+        --conn-host 'spark://spark' \
+        --conn-port '7077' \
+        --conn-extra '{\"deploy-mode\":\"client\"}' &&
+      echo 'Spark connection created successfully!'
+      "
+    environment:
+      - EXECUTOR=LocalExecutor
+      - AIRFLOW__CORE__LOAD_EXAMPLES=false
+      - AIRFLOW__WEBSERVER__SECRET_KEY=airflow_secret_key
+      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow:airflow@postgres/airflow
+    depends_on:
+      - airflow-webserver
+      - airflow-init
+    networks:
+      - hadoop_network
+    restart: on-failure
+
+
+    # Spark with 3 workers
+  spark:
+    image: bitnami/spark:3.5  # Updated Spark version
+    user: root
+    hostname: spark
+    container_name: spark
+    environment:
+      - SPARK_MODE=master
+      - SPARK_RPC_AUTHENTICATION_ENABLED=no
+      - SPARK_RPC_ENCRYPTION_ENABLED=no
+      - SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED=no
+      - SPARK_SSL_ENABLED=no
+    volumes:
+      - ../spark/app:/usr/local/spark/app
+      - ../spark/resources:/usr/local/spark/resources
+    ports:
+      - "8181:8080"
+      - "7077:7077"
+    networks:
+      - hadoop_network
+
+  spark-worker-1:
+    image: bitnami/spark:3.5  # Updated Spark version
+    user: root
+    environment:
+      - SPARK_MODE=worker
+      - SPARK_MASTER_URL=spark://spark:7077 # MUST config in Airflow Connection
+      - SPARK_WORKER_MEMORY=1G
+      - SPARK_WORKER_CORES=1
+      - SPARK_RPC_AUTHENTICATION_ENABLED=no
+      - SPARK_RPC_ENCRYPTION_ENABLED=no
+      - SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED=no
+      - SPARK_SSL_ENABLED=no
+    volumes:
+      - ../spark/app:/usr/local/spark/app
+      - ../spark/resources:/usr/local/spark/resources
+    networks:
+      - hadoop_network
+
+
+  spark-worker-2:
+    image: bitnami/spark:3.5  # Updated Spark version
+    user: root
+    environment:
+      - SPARK_MODE=worker
+      - SPARK_MASTER_URL=spark://spark:7077
+      - SPARK_WORKER_MEMORY=1G
+      - SPARK_WORKER_CORES=1
+      - SPARK_RPC_AUTHENTICATION_ENABLED=no
+      - SPARK_RPC_ENCRYPTION_ENABLED=no
+      - SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED=no
+      - SPARK_SSL_ENABLED=no
+    volumes:
+      - ../spark/app:/usr/local/spark/app
+      - ../spark/resources:/usr/local/spark/resources
+    networks:
+      - hadoop_network
+
   jupyter-spark:
-    image: jupyter/pyspark-notebook:spark-3.1.2
+    image: jupyter/pyspark-notebook:spark-3.5.0 # Updated to match Spark version (find appropriate tag if needed)
     container_name: jupyter
     ports:
       - "8888:8888"
