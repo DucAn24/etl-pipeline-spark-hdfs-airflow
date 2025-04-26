@@ -27,6 +27,6 @@ LINES TERMINATED BY '\n'
 IGNORE 1 ROWS
 (@CID, @BDATE, @GEN)
 SET 
-  customer_id = @CID,
-  birth_date = @BDATE,
-  gender = @GEN;
+  CID = @CID,
+  BDATE = @BDATE,
+  GEN = @GEN;
