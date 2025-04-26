@@ -7,7 +7,7 @@ FIELDS TERMINATED BY ','
 ENCLOSED BY '"'
 LINES TERMINATED BY '\n'
 IGNORE 1 ROWS
-(id, category, subcategory, maintenance);
+(ID, CAT, SUBCAT, MAINTENANCE);
 
 -- Load customer locations data
 LOAD DATA INFILE '/var/lib/mysql-files/LOC_A101.csv'
@@ -16,7 +16,7 @@ FIELDS TERMINATED BY ','
 ENCLOSED BY '"'
 LINES TERMINATED BY '\n'
 IGNORE 1 ROWS
-(customer_id, country);
+(CID, CNTRY);
 
 -- Load customer information data
 LOAD DATA INFILE '/var/lib/mysql-files/CUS_AZ12.csv'
