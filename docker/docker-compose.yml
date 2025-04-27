@@ -57,10 +57,12 @@ services:
       POSTGRES_USER: airflow
       POSTGRES_PASSWORD: airflow
       POSTGRES_DB: airflow
+      POSTGRES_MULTIPLE_DATABASES: "dwh" # Create an additional database for the data warehouse
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./postgres-init:/docker-entrypoint-initdb.d # Mount init script directory
     healthcheck:
       test: ["CMD", "pg_isready", "-U", "airflow"]
       interval: 10s
@@ -105,6 +107,7 @@ services:
       - ../airflow-dags:/opt/airflow/dags
       - ../datasets/source_crm:/usr/local/datasets/source_crm
       - ../spark/app:/usr/local/spark/app
+      - ../spark/resources/jars:/usr/local/spark/resources/jars
     depends_on:
       postgres:
         condition: service_healthy
@@ -128,6 +131,7 @@ services:
       - ../airflow-dags:/opt/airflow/dags
       - ../datasets/source_crm:/usr/local/datasets/source_crm
       - ../spark/app:/usr/local/spark/app
+      - ../spark/resources/jars:/usr/local/spark/resources/jars
     depends_on:
       airflow-webserver:
         condition: service_started
@@ -171,7 +175,7 @@ services:
     container_name: airflow_setup
     entrypoint: /bin/bash
     command: -c "
-      sleep 60 &&
+      sleep 30 &&
       echo 'Creating Spark connection...' &&
       airflow connections delete spark_default || true &&
       airflow connections add 'spark_default' \
