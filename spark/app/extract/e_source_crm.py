@@ -58,17 +58,23 @@ def load_to_hdfs(local_file, hdfs_path):
         return False
 
 def extract_crm_data(**kwargs):
-    """Extract CRM data directly within the Airflow container"""
+    """Extract CRM data directly to HDFS from source CSVs"""
     try:
         # Source directory containing CSV files
         source_dir = "/usr/local/datasets/source_crm"
         
-        # Destination directory for extracted files (local staging)
-        extract_dir = "/tmp/airflow_data/"   # Thư mục /tmp thường có quyền ghi
-        crm_extract_dir = os.path.join(extract_dir, "source_crm")
-        
         # HDFS destination path
         hdfs_path_crm = "/raw/source_crm"
+        
+        # Create HDFS client
+        hdfs_client = InsecureClient('http://namenode:9870', user='root')
+        
+        # Make sure the HDFS directory exists
+        try:
+            hdfs_client.makedirs(hdfs_path_crm)
+            print(f"Ensured HDFS directory exists: {hdfs_path_crm}")
+        except Exception as e:
+            print(f"Note: {str(e)}")
         
         # Get all CSV files in the source directory
         csv_files = glob.glob(os.path.join(source_dir, "*.csv"))
@@ -77,76 +83,40 @@ def extract_crm_data(**kwargs):
             print(f"No CSV files found in {source_dir}")
             return False
         
-        print(f"Found {len(csv_files)} CSV files to extract")
+        print(f"Found {len(csv_files)} CSV files to extract directly to HDFS")
         
         # Process each CSV file
         success_count = 0
         for csv_file in csv_files:
-            print(f"Processing {csv_file}...")
+            filename = os.path.basename(csv_file)
+            hdfs_file = f"{hdfs_path_crm}/{filename}"
             
-            # Extract to local staging
-            local_file = extract_csv_to_processing_area(csv_file, crm_extract_dir)
+            print(f"Loading {csv_file} directly to {hdfs_file}...")
             
-            if local_file:
-                print(f"CSV extraction to local staging completed successfully for {os.path.basename(csv_file)}")
+            try:
+                # Upload the file directly to HDFS
+                with open(csv_file, 'rb') as local_f:
+                    hdfs_client.write(hdfs_file, local_f, overwrite=True)
                 
-                # Load to HDFS
-                result = load_to_hdfs(local_file, hdfs_path_crm)
-                if result:
-                    print(f"CSV loading to HDFS completed successfully for {os.path.basename(csv_file)}")
-                    success_count += 1
-                else:
-                    print(f"CSV loading to HDFS failed for {os.path.basename(csv_file)}")
-            else:
-                print(f"CSV extraction to local staging failed for {os.path.basename(csv_file)}")
+                print(f"Successfully loaded {filename} to HDFS")
+                success_count += 1
+            except Exception as e:
+                print(f"Error loading {filename} to HDFS: {str(e)}")
         
-        print(f"Successfully processed {success_count}/{len(csv_files)} CSV files")
+        print(f"Successfully processed {success_count}/{len(csv_files)} CSV files directly to HDFS")
         return success_count == len(csv_files)
     except Exception as e:
         print(f"Error in extract_crm_data: {str(e)}")
         return False
 
 if __name__ == "__main__":
-    # Source directory containing CSV files
-    source_dir = "/usr/local/datasets/source_crm"
+    # Call the extract function directly
+    result = extract_crm_data()
     
-    # Destination directory for extracted files (local staging)
-    extract_dir = "/usr/local/spark/resources/data"
-    crm_extract_dir = os.path.join(extract_dir, "source_crm")
-    
-    # HDFS destination path
-    hdfs_path = "/raw/source_crm"
-    
-    # Get all CSV files in the source directory
-    csv_files = glob.glob(os.path.join(source_dir, "*.csv"))
-    
-    if not csv_files:
-        print(f"No CSV files found in {source_dir}")
-        exit(1)
-    
-    print(f"Found {len(csv_files)} CSV files to extract")
-    
-    # Process each CSV file
-    success_count = 0
-    for csv_file in csv_files:
-        print(f"Processing {csv_file}...")
-        
-        # Extract to local staging
-        local_file = extract_csv_to_processing_area(csv_file, crm_extract_dir)
-        
-        if local_file:
-            print(f"CSV extraction to local staging completed successfully for {os.path.basename(csv_file)}")
-            
-            # Load to HDFS
-            result = load_to_hdfs(local_file, hdfs_path)
-            if result:
-                print(f"CSV loading to HDFS completed successfully for {os.path.basename(csv_file)}")
-                success_count += 1
-            else:
-                print(f"CSV loading to HDFS failed for {os.path.basename(csv_file)}")
-        else:
-            print(f"CSV extraction to local staging failed for {os.path.basename(csv_file)}")
-    
-    print(f"Successfully processed {success_count}/{len(csv_files)} CSV files")
+    if result:
+        print("CRM data extraction and loading to HDFS completed successfully")
+    else:
+        print("CRM data extraction or loading to HDFS failed")
+        sys.exit(1)
 
     # docker exec -it python3 python /usr/local/spark/app/extract/e_source_crm.py

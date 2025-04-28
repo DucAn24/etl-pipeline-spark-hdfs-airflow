@@ -70,9 +70,9 @@ def load_to_hdfs(local_file, hdfs_path):
         return False
 
 def extract_erp_data(**kwargs):
-    """Extract ERP data directly within the Airflow container"""
+    """Extract ERP data directly from MySQL to HDFS"""
     try:
-        print("Starting MySQL extraction process...")
+        print("Starting MySQL extraction process with direct loading to HDFS...")
         
         # MySQL connection details
         mysql_config = {
@@ -82,12 +82,18 @@ def extract_erp_data(**kwargs):
             "database": "source_erp"
         }
         
-        # Destination directory for extracted files (local staging)
-        extract_dir = "/tmp/airflow_data/"   # Thư mục /tmp thường có quyền ghi
-        erp_extract_dir = os.path.join(extract_dir, "source_erp")
-        
         # HDFS destination path
         hdfs_path_erp = "/raw/source_erp"
+        
+        # Create HDFS client
+        hdfs_client = InsecureClient('http://namenode:9870', user='root')
+        
+        # Make sure the HDFS directory exists
+        try:
+            hdfs_client.makedirs(hdfs_path_erp)
+            print(f"Ensured HDFS directory exists: {hdfs_path_erp}")
+        except Exception as e:
+            print(f"Note: {str(e)}")
         
         print(f"Attempting to connect to MySQL at {mysql_config['host']} as {mysql_config['user']}...")
         
@@ -140,31 +146,46 @@ def extract_erp_data(**kwargs):
         else:
             print(f"Found {len(tables)} tables: {', '.join(tables)}")
         
-        # Create extract directory
-        ensure_dir(erp_extract_dir)
-        print(f"Using extract directory: {erp_extract_dir}")
-        
-        # Extract each table and load to HDFS
+        # Extract each table and load directly to HDFS
         success_count = 0
         for table in tables:
             print(f"Processing table: {table}")
-            # Extract to local staging
-            local_file = extract_mysql_table(conn, table, erp_extract_dir)
             
-            if local_file:
-                print(f"Table {table} extracted to local staging successfully: {local_file}")
+            try:
+                # Get column names
+                cursor = conn.cursor()
+                cursor.execute(f"SHOW COLUMNS FROM {table}")
+                columns = [column[0] for column in cursor.fetchall()]
                 
-                # Load to HDFS
-                result = load_to_hdfs(local_file, hdfs_path_erp)
-                if result:
-                    print(f"Table {table} loaded to HDFS successfully")
-                    success_count += 1
-                else:
-                    print(f"Failed to load table {table} to HDFS")
-            else:
-                print(f"Failed to extract table {table}")
+                # Query data
+                cursor.execute(f"SELECT * FROM {table}")
+                rows = cursor.fetchall()
+                cursor.close()
+                
+                if not rows:
+                    print(f"Warning: Table {table} has no data")
+                    continue
+                
+                # Prepare CSV data in memory
+                import io
+                import csv
+                
+                csv_buffer = io.StringIO()
+                csv_writer = csv.writer(csv_buffer)
+                csv_writer.writerow(columns)  # Write header
+                csv_writer.writerows(rows)    # Write data rows
+                
+                # Write directly to HDFS
+                hdfs_file = f"{hdfs_path_erp}/{table}.csv"
+                hdfs_client.write(hdfs_file, data=csv_buffer.getvalue().encode('utf-8'), overwrite=True)
+                
+                print(f"Successfully extracted {len(rows)} rows from {table} directly to HDFS: {hdfs_file}")
+                success_count += 1
+                
+            except Exception as e:
+                print(f"Error processing table {table}: {str(e)}")
         
-        print(f"Successfully extracted and loaded {success_count}/{len(tables)} tables")
+        print(f"Successfully extracted and loaded {success_count}/{len(tables)} tables directly to HDFS")
         
         # Close connection
         conn.close()
