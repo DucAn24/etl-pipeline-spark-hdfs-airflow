@@ -1,4 +1,3 @@
-
 # ETL Pipeline Project
 
 This project implements an end-to-end ETL pipeline using Apache Spark, Airflow, and Docker. It extracts data from MySQL sources, transforms data from CRM & ERP systems, creates a dimensional model, and loads the data into a PostgreSQL data warehouse.
@@ -54,10 +53,17 @@ Before running the project, ensure you have installed and configured:
    docker-compose up -d
    ```
 
-2. **Airflow Configuration:**  
+2. **HDFS Directory Setup:**
+   Before running any DAGs that interact with HDFS, create the necessary directories and set permissions:
+   ```bash
+   docker exec -it namenode hdfs dfs -mkdir -p /raw /transform/source_crm /transform/source_erp /transform/dim /transform/fact
+   docker exec -it namenode hdfs dfs -chmod -R 777 /raw /transform
+   ```
+
+3. **Airflow Configuration:**  
    The DAGs in the `airflow-dags/` folder are configured to run Spark jobs via `SparkSubmitOperator` and `BashOperator` commands. Ensure that your Airflow connections (e.g., `spark_default`) are properly configured to point to the Spark master.
 
-3. **Database Connections:**  
+4. **Database Connections:**  
    Verify that the MySQL and PostgreSQL connection details in the extraction and load scripts (e.g., within [`e_source_erp.py`](e:\etl_pineline_project\spark\app\extract\e_source_erp.py) and [`load_dwh.py`](e:\etl_pineline_project\spark\app\load\load_dwh.py)) match your environment.
 
 ## Running the Pipeline
@@ -73,10 +79,10 @@ There are multiple ways to execute the ETL pipeline:
   docker exec -it python3 python /usr/local/spark/app/extract/e_source_crm.py
   ```
 
-- **Manual Testing:**  
-  Run the [`test-worker.py`](e:\etl_pineline_project\test-worker.py) script to verify that the Spark worker nodes are accessible:
-  ```
-  python test-worker.py
-  ```
-  
+## Airflow DAG
+
+The main ETL workflow orchestrated by Airflow (`etl_dag.py`) looks like this:
+
+
+
 
