@@ -93,4 +93,4 @@ def run_transform_job(create_session_fn, transform_fn):
     finally:
         if spark:
             spark.stop()
-            print("Spark session stopped") 
+            print("Spark session stopped")
