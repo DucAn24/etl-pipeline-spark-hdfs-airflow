@@ -21,6 +21,7 @@ The pipeline is composed of several components:
   Contains DAG definitions to orchestrate extraction, transformation, and load tasks:
   - `etl_dag.py` – Main Airflow DAG for coordinating ETL tasks.
   - `to_dwh.py` – DAG for transforming data and loading it to the PostgreSQL warehouse.
+  - `transform.py` – DAG for transforming data and loading it to the PostgreSQL warehouse.
   - `to_staging.py` – DAG for extracting and staging data to HDFS.
 
 - **spark/**  
@@ -28,20 +29,12 @@ The pipeline is composed of several components:
   - `app/extract/` – Extraction scripts for CRM and ERP (e.g., `e_source_erp.py`, `e_source_crm.py`).
   - `app/transform/` – Transformation scripts for different data types (customer info, product info, sales details, etc.).
   - `app/load/` – Load scripts such as `load_dwh.py` that load data into PostgreSQL.
+  - `app/utils/` – Utility scripts for common Spark and HDFS operations (e.g., `spark_utils.py`, `hdfs_utils.py`).
   - Each transformation script typically creates its own Spark session (see, for example, [`crm_cust_info.py`](e:\etl_pineline_project\spark\app\transform\crm_cust_info.py) and [`crm_prd_info.py`](e:\etl_pineline_project\spark\app\transform\crm_prd_info.py)).
 
 - **docker/**  
   Contains the `docker-compose.yml` which defines the Docker configuration for Spark master, Spark workers, and other services.
 
-
-## Prerequisites
-
-Before running the project, ensure you have installed and configured:
-- [Docker Desktop](https://www.docker.com/products/docker-desktop)
-- [Apache Airflow](https://airflow.apache.org/) (or use the provided Docker configuration)
-- [Apache Spark](https://spark.apache.org/)
-- PostgreSQL database for the data warehouse
-- MySQL database for the source ERP system
 
 ## Setup and Configuration
 
@@ -65,6 +58,14 @@ Before running the project, ensure you have installed and configured:
 
 4. **Database Connections:**  
    Verify that the MySQL and PostgreSQL connection details in the extraction and load scripts (e.g., within [`e_source_erp.py`](e:\etl_pineline_project\spark\app\extract\e_source_erp.py) and [`load_dwh.py`](e:\etl_pineline_project\spark\app\load\load_dwh.py)) match your environment.
+
+## Tech Stack
+
+- **Orchestration:** Apache Airflow
+- **Data Processing:** Apache Spark (PySpark)
+- **Storage:** HDFS (Hadoop Distributed File System)
+- **Databases:** MySQL (Source), PostgreSQL (Data Warehouse)
+- **Containerization:** Docker, Docker Compose
 
 ## Running the Pipeline
 
