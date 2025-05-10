@@ -83,5 +83,6 @@ There are multiple ways to execute the ETL pipeline:
 
 The main ETL workflow orchestrated by Airflow (`etl_dag.py`) looks like this:
 
+![Screenshot 2025-04-28 010129](https://github.com/user-attachments/assets/8d77e49e-9f57-4aae-88c5-556a4338d8b2)
 
 
