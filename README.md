@@ -4,6 +4,9 @@ This project implements an end-to-end ETL pipeline using Apache Spark, Airflow, 
 ## 🏗️ Data Architecture
 ![data_architecture](https://github.com/user-attachments/assets/6f41f133-e586-4d12-9f54-ceb23476f7ab)
 
+## 📊 DWH Diagram
+![Screenshot 2025-06-06 002904](https://github.com/user-attachments/assets/252497a5-4371-47e6-9f84-3f4df03182ba)
+
 ## Project Overview
 
 The pipeline is composed of several components:
