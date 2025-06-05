@@ -1,279 +1,258 @@
 import os
 import sys
-import mysql.connector
 import csv
-import subprocess
+import io
 import traceback
 from datetime import datetime
 from hdfs import InsecureClient
-import pymysql  # Adding PyMySQL for Airflow compatibility
+import pymysql
+
+# Configuration
+MYSQL_CONFIG = {
+    "host": "mysql_source",
+    "user": "etl", 
+    "password": "etl",
+    "database": "source_erp"
+}
+
+HDFS_CONFIG = {
+    "namenode_url": "http://namenode:9870",
+    "user": "root",
+    "destination_path": "/raw/source_erp"
+}
 
 def ensure_dir(directory):
     """Create directory if it doesn't exist"""
-    if not os.path.exists(directory):
-        os.makedirs(directory)
-        print(f"Created directory: {directory}")
-
-def extract_mysql_table(conn, table_name, output_dir):
-    """
-    Extract a MySQL table to a CSV file
-    """
     try:
-        cursor = conn.cursor()
-        
-        # Get column names
-        cursor.execute(f"SHOW COLUMNS FROM {table_name}")
-        columns = [column[0] for column in cursor.fetchall()]
-        
-        # Query data
-        cursor.execute(f"SELECT * FROM {table_name}")
-        rows = cursor.fetchall()
-        
-        # Create output directory if it doesn't exist
-        ensure_dir(output_dir)
-        
-        # Write to CSV
-        output_file = os.path.join(output_dir, f"{table_name}.csv")
-        with open(output_file, 'w', newline='') as csvfile:
-            writer = csv.writer(csvfile)
-            writer.writerow(columns)  # Write header
-            writer.writerows(rows)    # Write data rows
-        
-        print(f"Extracted {len(rows)} rows from {table_name} to {output_file}")
-        return output_file
-    except Exception as e:
-        print(f"Error extracting table {table_name}: {str(e)}")
-        return None
-    finally:
-        cursor.close()
-
-def load_to_hdfs(local_file, hdfs_path):
-    """Load a local file to HDFS using WebHDFS API or HDFS client"""
-    try:
-        # Create HDFS client
-        hdfs_client = InsecureClient('http://namenode:9870', user='root')
-        
-        filename = os.path.basename(local_file)
-        hdfs_file = f"{hdfs_path}/{filename}"
-        
-        # Make sure the directory exists
-        hdfs_client.makedirs(hdfs_path)
-        
-        # Upload the file to HDFS
-        with open(local_file, 'rb') as local_f:
-            hdfs_client.write(hdfs_file, local_f, overwrite=True)
-        
-        print(f"Successfully loaded {local_file} to {hdfs_file}")
+        if not os.path.exists(directory):
+            os.makedirs(directory)
+            print(f"Created directory: {directory}")
         return True
     except Exception as e:
-        print(f"Error loading to HDFS: {str(e)}")
+        print(f"Error creating directory {directory}: {str(e)}")
         return False
 
-def extract_erp_data(**kwargs):
-    """Extract ERP data directly from MySQL to HDFS"""
-    try:
-        print("Starting MySQL extraction process with direct loading to HDFS...")
-        
-        # MySQL connection details
-        mysql_config = {
-            "host": "mysql_source",  # Docker container name
-            "user": "etl",
-            "password": "etl",
-            "database": "source_erp"
-        }
-        
-        # HDFS destination path
-        hdfs_path_erp = "/raw/source_erp"
-        
-        # Create HDFS client
-        hdfs_client = InsecureClient('http://namenode:9870', user='root')
-        
-        # Make sure the HDFS directory exists
+def get_mysql_connection(config):
+    """
+    Establish MySQL connection with fallback strategies
+    """
+    connection_strategies = [
+        # Strategy 1: With mysql_native_password
+        lambda: pymysql.connect(
+            host=config["host"],
+            user=config["user"], 
+            password=config["password"],
+            database=config["database"],
+            auth_plugin='mysql_native_password'
+        ),
+        # Strategy 2: Without auth_plugin
+        lambda: pymysql.connect(
+            host=config["host"],
+            user=config["user"],
+            password=config["password"], 
+            database=config["database"]
+        ),
+        # Strategy 3: Using localhost as fallback
+        lambda: pymysql.connect(
+            host="localhost",
+            user=config["user"],
+            password=config["password"],
+            database=config["database"]
+        )
+    ]
+    
+    for i, strategy in enumerate(connection_strategies, 1):
         try:
-            hdfs_client.makedirs(hdfs_path_erp)
-            print(f"Ensured HDFS directory exists: {hdfs_path_erp}")
+            conn = strategy()
+            print(f"Connected to MySQL successfully (Strategy {i})")
+            return conn
         except Exception as e:
-            print(f"Note: {str(e)}")
-        
-        print(f"Attempting to connect to MySQL at {mysql_config['host']} as {mysql_config['user']}...")
-        
-        # Try connection with different auth methods
-        try:
-            # First try with mysql_native_password
-            conn = pymysql.connect(
-                host=mysql_config["host"],
-                user=mysql_config["user"],
-                password=mysql_config["password"],
-                database=mysql_config["database"],
-                auth_plugin='mysql_native_password'
-            )
-            print("Connected to MySQL successfully with mysql_native_password")
-        except Exception as e1:
-            print(f"Failed to connect with mysql_native_password: {str(e1)}")
-            try:
-                # Then try without auth_plugin
-                conn = pymysql.connect(
-                    host=mysql_config["host"],
-                    user=mysql_config["user"],
-                    password=mysql_config["password"],
-                    database=mysql_config["database"]
-                )
-                print("Connected to MySQL successfully without specifying auth_plugin")
-            except Exception as e2:
-                print(f"Failed to connect without auth_plugin: {str(e2)}")
-                # Last resort - try localhost instead of service name
-                try:
-                    conn = pymysql.connect(
-                        host="localhost",
-                        user=mysql_config["user"],
-                        password=mysql_config["password"],
-                        database=mysql_config["database"]
-                    )
-                    print("Connected to MySQL successfully using localhost")
-                except Exception as e3:
-                    print(f"All connection attempts failed: {str(e3)}")
-                    raise Exception("Could not establish MySQL connection after multiple attempts")
-        
-        # Get list of tables
-        print("Getting list of tables...")
-        cursor = conn.cursor()
-        cursor.execute("SHOW TABLES")
-        tables = [table[0] for table in cursor.fetchall()]
-        cursor.close()
+            print(f"Connection strategy {i} failed: {str(e)}")
+    
+    raise Exception("Could not establish MySQL connection after all attempts")
+
+def get_hdfs_client(config):
+    """Create and return HDFS client"""
+    try:
+        client = InsecureClient(config["namenode_url"], user=config["user"])
+        return client
+    except Exception as e:
+        print(f"Error creating HDFS client: {str(e)}")
+        raise
+
+def get_table_list(connection):
+    """Get list of tables from MySQL database"""
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute("SHOW TABLES")
+            tables = [table[0] for table in cursor.fetchall()]
         
         if not tables:
             print("Warning: No tables found in the database!")
         else:
             print(f"Found {len(tables)} tables: {', '.join(tables)}")
         
-        # Extract each table and load directly to HDFS
-        success_count = 0
-        for table in tables:
-            print(f"Processing table: {table}")
+        return tables
+    except Exception as e:
+        print(f"Error getting table list: {str(e)}")
+        raise
+
+def extract_table_to_csv_string(connection, table_name):
+    """
+    Extract MySQL table data and return as CSV string
+    """
+    try:
+        with connection.cursor() as cursor:
+            # Get column names
+            cursor.execute(f"SHOW COLUMNS FROM {table_name}")
+            columns = [column[0] for column in cursor.fetchall()]
             
-            try:
-                # Get column names
-                cursor = conn.cursor()
-                cursor.execute(f"SHOW COLUMNS FROM {table}")
-                columns = [column[0] for column in cursor.fetchall()]
-                
-                # Query data
-                cursor.execute(f"SELECT * FROM {table}")
-                rows = cursor.fetchall()
-                cursor.close()
-                
-                if not rows:
-                    print(f"Warning: Table {table} has no data")
-                    continue
-                
-                # Prepare CSV data in memory
-                import io
-                import csv
-                
-                csv_buffer = io.StringIO()
-                csv_writer = csv.writer(csv_buffer)
-                csv_writer.writerow(columns)  # Write header
-                csv_writer.writerows(rows)    # Write data rows
-                
-                # Write directly to HDFS
-                hdfs_file = f"{hdfs_path_erp}/{table}.csv"
-                hdfs_client.write(hdfs_file, data=csv_buffer.getvalue().encode('utf-8'), overwrite=True)
-                
-                print(f"Successfully extracted {len(rows)} rows from {table} directly to HDFS: {hdfs_file}")
+            # Query data
+            cursor.execute(f"SELECT * FROM {table_name}")
+            rows = cursor.fetchall()
+            
+            if not rows:
+                print(f"Warning: Table {table_name} has no data")
+                return None, 0
+            
+            # Create CSV in memory
+            csv_buffer = io.StringIO()
+            csv_writer = csv.writer(csv_buffer)
+            csv_writer.writerow(columns)  # Header
+            csv_writer.writerows(rows)    # Data
+            
+            return csv_buffer.getvalue(), len(rows)
+    
+    except Exception as e:
+        print(f"Error extracting table {table_name}: {str(e)}")
+        return None, 0
+
+def upload_to_hdfs(hdfs_client, csv_data, hdfs_path, filename):
+    """Upload CSV data directly to HDFS"""
+    try:
+        # Ensure directory exists
+        hdfs_client.makedirs(os.path.dirname(hdfs_path))
+        
+        # Upload file
+        hdfs_client.write(hdfs_path, data=csv_data.encode('utf-8'), overwrite=True)
+        print(f"Successfully uploaded {filename} to HDFS: {hdfs_path}")
+        return True
+        
+    except Exception as e:
+        print(f"Error uploading {filename} to HDFS: {str(e)}")
+        return False
+
+def extract_erp_data(**kwargs):
+
+    try:
+        print("Starting ERP data extraction process...")
+        
+        # Initialize connections
+        mysql_conn = get_mysql_connection(MYSQL_CONFIG)
+        hdfs_client = get_hdfs_client(HDFS_CONFIG)
+        
+        # Get table list
+        tables = get_table_list(mysql_conn)
+        
+        if not tables:
+            print("No tables to process")
+            return False
+        
+        # Process each table
+        success_count = 0
+        for table_name in tables:
+            print(f"Processing table: {table_name}")
+            
+            # Extract table data
+            csv_data, row_count = extract_table_to_csv_string(mysql_conn, table_name)
+            
+            if csv_data is None:
+                print(f"Skipping table {table_name} (no data or error)")
+                continue
+            
+            # Upload to HDFS
+            hdfs_path = f"{HDFS_CONFIG['destination_path']}/{table_name}.csv"
+            
+            if upload_to_hdfs(hdfs_client, csv_data, hdfs_path, table_name):
+                print(f"Successfully processed {table_name}: {row_count} rows")
                 success_count += 1
-                
-            except Exception as e:
-                print(f"Error processing table {table}: {str(e)}")
+            else:
+                print(f"Failed to upload {table_name} to HDFS")
         
-        print(f"Successfully extracted and loaded {success_count}/{len(tables)} tables directly to HDFS")
-        
-        # Close connection
-        conn.close()
+        # Cleanup
+        mysql_conn.close()
         print("MySQL connection closed")
+        
+        # Return results
+        success_rate = success_count / len(tables) if tables else 0
+        print(f"Extraction completed: {success_count}/{len(tables)} tables processed successfully")
+        
         return success_count == len(tables) and len(tables) > 0
+        
     except Exception as e:
         print(f"Error in extract_erp_data: {str(e)}")
         print(f"Exception traceback: {traceback.format_exc()}")
         return False
 
-def extract_all_tables(host, user, password, database, extract_dir, hdfs_path):
-    """
-    Extract all tables from a MySQL database and load to HDFS
-    """
+def extract_to_local_and_hdfs(mysql_config, local_dir, hdfs_path):
+
     try:
-        # Connect to MySQL
-        conn = mysql.connector.connect(
-            host=host,
-            user=user,
-            password=password,
-            database=database
-        )
+        # Create local directory
+        if not ensure_dir(local_dir):
+            return False
         
-        # Get list of tables
-        cursor = conn.cursor()
-        cursor.execute("SHOW TABLES")
-        tables = [table[0] for table in cursor.fetchall()]
-        cursor.close()
+        # Initialize connections
+        mysql_conn = get_mysql_connection(mysql_config)
+        hdfs_client = get_hdfs_client(HDFS_CONFIG)
         
-        # Extract each table and load to HDFS
+        # Get table list
+        tables = get_table_list(mysql_conn)
+        
         success_count = 0
-        for table in tables:
-            # Extract to local staging
-            local_file = extract_mysql_table(conn, table, extract_dir)
-            
-            if local_file:
-                print(f"Table {table} extracted to local staging successfully")
+        for table_name in tables:
+            try:
+                # Extract to local file
+                csv_data, row_count = extract_table_to_csv_string(mysql_conn, table_name)
                 
-                # Load to HDFS
-                result = load_to_hdfs(local_file, hdfs_path)
-                if result:
-                    print(f"Table {table} loaded to HDFS successfully")
+                if csv_data is None:
+                    continue
+                
+                # Save to local file
+                local_file = os.path.join(local_dir, f"{table_name}.csv")
+                with open(local_file, 'w', newline='', encoding='utf-8') as f:
+                    f.write(csv_data)
+                
+                print(f"Saved {table_name} locally: {local_file} ({row_count} rows)")
+                
+                # Upload to HDFS
+                hdfs_file_path = f"{hdfs_path}/{table_name}.csv"
+                if upload_to_hdfs(hdfs_client, csv_data, hdfs_file_path, table_name):
                     success_count += 1
-                else:
-                    print(f"Failed to load table {table} to HDFS")
-            else:
-                print(f"Failed to extract table {table}")
+                
+            except Exception as e:
+                print(f"Error processing table {table_name}: {str(e)}")
         
-        print(f"Successfully extracted and loaded {success_count}/{len(tables)} tables")
+        mysql_conn.close()
         
-        # Close connection
-        conn.close()
+        print(f"Local + HDFS extraction completed: {success_count}/{len(tables)} tables")
         return success_count == len(tables)
+        
     except Exception as e:
-        print(f"Error connecting to MySQL: {str(e)}")
+        print(f"Error in extract_to_local_and_hdfs: {str(e)}")
         return False
 
 if __name__ == "__main__":
-    # MySQL connection details
-    mysql_config = {
-        "host": "mysql_source",  # Docker container name matches docker-compose.yml
-        "user": "etl",           # Matches MYSQL_USER in docker-compose.yml
-        "password": "etl",       # Matches MYSQL_PASSWORD in docker-compose.yml
-        "database": "source_erp" # Matches MYSQL_DATABASE in docker-compose.yml
-    }
+
+    print("Running ERP data extraction...")
     
-    # Destination directory for extracted files (local staging)
-    extract_dir = "/usr/local/spark/resources/data/"
-    erp_extract_dir = os.path.join(extract_dir, "source_erp")
+    local_extract_dir = "/usr/local/spark/resources/data/source_erp"
     
-    # HDFS destination path
-    hdfs_path = "/raw/source_erp"
+    success = extract_erp_data()
     
-    # Extract all tables and load to HDFS
-    result = extract_all_tables(
-        mysql_config["host"],
-        mysql_config["user"],
-        mysql_config["password"],
-        mysql_config["database"],
-        erp_extract_dir,
-        hdfs_path
-    )
-    
-    if result:
-        print("MySQL extraction and loading to HDFS completed successfully")
+    if success:
+        print("✓ ERP data extraction completed successfully")
     else:
-        print("MySQL extraction or loading to HDFS failed")
-
-
+        print("✗ ERP data extraction failed")
+        sys.exit(1)
 
 # docker exec -it python3 python /usr/local/spark/app/extract/e_source_erp.py
