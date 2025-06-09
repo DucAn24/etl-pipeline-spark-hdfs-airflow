@@ -1,12 +1,34 @@
 """
 Utility functions for HDFS operations
 """
-import os
 from hdfs import InsecureClient
 
-# Define common paths
-hdfs_path_crm = "/raw/source_crm"
-hdfs_path_erp = "/raw/source_erp"
+# Common HDFS paths
+HDFS_PATHS = {
+    "raw_crm": "/raw/source_crm",
+    "raw_erp": "/raw/source_erp",
+    "transform_crm": "/transform/source_crm",
+    "transform_erp": "/transform/source_erp",
+    "dim": "/transform/dim",
+    "fact": "/transform/fact"
+}
+
+def get_hdfs_client(namenode_url='http://namenode:9870', user='root'):
+    """Create and return HDFS client"""
+    try:
+        return InsecureClient(namenode_url, user=user)
+    except Exception as e:
+        print(f"Error creating HDFS client: {str(e)}")
+        raise
+
+def ensure_hdfs_directory(hdfs_client, path):
+    """Ensure HDFS directory exists"""
+    try:
+        hdfs_client.makedirs(path)
+        return True
+    except Exception as e:
+        print(f"Error creating HDFS directory {path}: {str(e)}")
+        return False
 
 def check_hdfs_data(**kwargs):
     """Check if data was successfully loaded to HDFS"""
@@ -14,29 +36,29 @@ def check_hdfs_data(**kwargs):
         print("Checking HDFS data availability...")
         
         # Create HDFS client
-        hdfs_client = InsecureClient('http://namenode:9870', user='root')
+        hdfs_client = get_hdfs_client()
         
-        # Check if CRM path exists
+        # Check CRM data
         print("\nChecking CRM data...")
         try:
-            crm_files = hdfs_client.list(hdfs_path_crm)
-            print(f"CRM data in HDFS: {crm_files}")
+            crm_files = hdfs_client.list(HDFS_PATHS["raw_crm"])
+            print(f"✓ CRM data found: {crm_files}")
         except Exception as e:
-            print(f"Error or no data found in CRM path: {str(e)}")
-            hdfs_client.makedirs(hdfs_path_crm)
-            print(f"Created directory: {hdfs_path_crm}")
+            print(f"✗ CRM data not found: {str(e)}")
+            ensure_hdfs_directory(hdfs_client, HDFS_PATHS["raw_crm"])
+            print(f"Created directory: {HDFS_PATHS['raw_crm']}")
         
-        # Check if ERP path exists
+        # Check ERP data
         print("\nChecking ERP data...")
         try:
-            erp_files = hdfs_client.list(hdfs_path_erp)
-            print(f"ERP data in HDFS: {erp_files}")
+            erp_files = hdfs_client.list(HDFS_PATHS["raw_erp"])
+            print(f"✓ ERP data found: {erp_files}")
         except Exception as e:
-            print(f"Error or no data found in ERP path: {str(e)}")
-            hdfs_client.makedirs(hdfs_path_erp)
-            print(f"Created directory: {hdfs_path_erp}")
+            print(f"✗ ERP data not found: {str(e)}")
+            ensure_hdfs_directory(hdfs_client, HDFS_PATHS["raw_erp"])
+            print(f"Created directory: {HDFS_PATHS['raw_erp']}")
         
         return True
     except Exception as e:
-        print(f"Unexpected error checking HDFS: {str(e)}")
+        print(f"Error checking HDFS: {str(e)}")
         return False

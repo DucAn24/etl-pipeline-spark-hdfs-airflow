@@ -3,7 +3,6 @@ import sys
 import csv
 import io
 import traceback
-from datetime import datetime
 from hdfs import InsecureClient
 import pymysql
 
@@ -21,21 +20,8 @@ HDFS_CONFIG = {
     "destination_path": "/raw/source_erp"
 }
 
-def ensure_dir(directory):
-    """Create directory if it doesn't exist"""
-    try:
-        if not os.path.exists(directory):
-            os.makedirs(directory)
-            print(f"Created directory: {directory}")
-        return True
-    except Exception as e:
-        print(f"Error creating directory {directory}: {str(e)}")
-        return False
-
 def get_mysql_connection(config):
-    """
-    Establish MySQL connection with fallback strategies
-    """
+    """Establish MySQL connection with fallback strategies"""
     connection_strategies = [
         # Strategy 1: With mysql_native_password
         lambda: pymysql.connect(
@@ -64,7 +50,7 @@ def get_mysql_connection(config):
     for i, strategy in enumerate(connection_strategies, 1):
         try:
             conn = strategy()
-            print(f"Connected to MySQL successfully (Strategy {i})")
+            print(f"✓ Connected to MySQL (Strategy {i})")
             return conn
         except Exception as e:
             print(f"Connection strategy {i} failed: {str(e)}")
@@ -98,9 +84,7 @@ def get_table_list(connection):
         raise
 
 def extract_table_to_csv_string(connection, table_name):
-    """
-    Extract MySQL table data and return as CSV string
-    """
+    """Extract MySQL table data and return as CSV string"""
     try:
         with connection.cursor() as cursor:
             # Get column names
@@ -135,17 +119,18 @@ def upload_to_hdfs(hdfs_client, csv_data, hdfs_path, filename):
         
         # Upload file
         hdfs_client.write(hdfs_path, data=csv_data.encode('utf-8'), overwrite=True)
-        print(f"Successfully uploaded {filename} to HDFS: {hdfs_path}")
+        print(f"✓ Successfully uploaded {filename}")
         return True
         
     except Exception as e:
-        print(f"Error uploading {filename} to HDFS: {str(e)}")
+        print(f"✗ Error uploading {filename}: {str(e)}")
         return False
 
 def extract_erp_data(**kwargs):
-
+    """Extract ERP data from MySQL to HDFS"""
+    mysql_conn = None
     try:
-        print("Starting ERP data extraction process...")
+        print("Starting ERP data extraction...")
         
         # Initialize connections
         mysql_conn = get_mysql_connection(MYSQL_CONFIG)
@@ -174,78 +159,23 @@ def extract_erp_data(**kwargs):
             hdfs_path = f"{HDFS_CONFIG['destination_path']}/{table_name}.csv"
             
             if upload_to_hdfs(hdfs_client, csv_data, hdfs_path, table_name):
-                print(f"Successfully processed {table_name}: {row_count} rows")
+                print(f"Processed {table_name}: {row_count} rows")
                 success_count += 1
-            else:
-                print(f"Failed to upload {table_name} to HDFS")
         
-        # Cleanup
-        mysql_conn.close()
-        print("MySQL connection closed")
-        
-        # Return results
-        success_rate = success_count / len(tables) if tables else 0
-        print(f"Extraction completed: {success_count}/{len(tables)} tables processed successfully")
-        
+        print(f"Completed: {success_count}/{len(tables)} tables processed successfully")
         return success_count == len(tables) and len(tables) > 0
         
     except Exception as e:
         print(f"Error in extract_erp_data: {str(e)}")
         print(f"Exception traceback: {traceback.format_exc()}")
         return False
-
-def extract_to_local_and_hdfs(mysql_config, local_dir, hdfs_path):
-
-    try:
-        # Create local directory
-        if not ensure_dir(local_dir):
-            return False
-        
-        # Initialize connections
-        mysql_conn = get_mysql_connection(mysql_config)
-        hdfs_client = get_hdfs_client(HDFS_CONFIG)
-        
-        # Get table list
-        tables = get_table_list(mysql_conn)
-        
-        success_count = 0
-        for table_name in tables:
-            try:
-                # Extract to local file
-                csv_data, row_count = extract_table_to_csv_string(mysql_conn, table_name)
-                
-                if csv_data is None:
-                    continue
-                
-                # Save to local file
-                local_file = os.path.join(local_dir, f"{table_name}.csv")
-                with open(local_file, 'w', newline='', encoding='utf-8') as f:
-                    f.write(csv_data)
-                
-                print(f"Saved {table_name} locally: {local_file} ({row_count} rows)")
-                
-                # Upload to HDFS
-                hdfs_file_path = f"{hdfs_path}/{table_name}.csv"
-                if upload_to_hdfs(hdfs_client, csv_data, hdfs_file_path, table_name):
-                    success_count += 1
-                
-            except Exception as e:
-                print(f"Error processing table {table_name}: {str(e)}")
-        
-        mysql_conn.close()
-        
-        print(f"Local + HDFS extraction completed: {success_count}/{len(tables)} tables")
-        return success_count == len(tables)
-        
-    except Exception as e:
-        print(f"Error in extract_to_local_and_hdfs: {str(e)}")
-        return False
+    finally:
+        if mysql_conn:
+            mysql_conn.close()
+            print("MySQL connection closed")
 
 if __name__ == "__main__":
-
-    print("Running ERP data extraction...")
-    
-    local_extract_dir = "/usr/local/spark/resources/data/source_erp"
+    print("Starting ERP data extraction...")
     
     success = extract_erp_data()
     
