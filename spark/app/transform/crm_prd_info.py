@@ -5,7 +5,7 @@ import traceback
 import sys
 sys.path.append('/usr/local/spark/app')
 
-from utils.spark_utils import create_spark_session, write_as_single_csv, run_transform_job
+from utils.spark_utils import create_spark_session, run_transform_job
 
 def create_crm_product_session():
     """Create a Spark session for Product Info transformation"""
@@ -16,7 +16,7 @@ def transform_product_info(spark):
     try:
         # Define paths with explicit HDFS scheme
         input_path = "hdfs://namenode:9000/raw/source_crm/prd_info.csv"
-        output_path = "hdfs://namenode:9000/transform/source_crm"
+        output_path = "hdfs://namenode:9000/transform/source_crm/prd_info"
         
         print(f"Starting product info transformation. Reading from: {input_path}")
         
@@ -54,8 +54,9 @@ def transform_product_info(spark):
         
         # Write transformed data
         print(f"Writing data to: {output_path}")
-        input_filename = os.path.basename(input_path)
-        write_as_single_csv(spark, transformed_df, output_path, input_filename)
+        transformed_df.write.mode("overwrite") \
+            .option("header", "true") \
+            .csv(output_path)
             
         print(f"Transformed product records")
         return transformed_df

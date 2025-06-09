@@ -6,7 +6,7 @@ import traceback
 import os
 import sys
 sys.path.append('/usr/local/spark/app')
-from utils.spark_utils import create_spark_session, write_as_single_csv, run_transform_job
+from utils.spark_utils import create_spark_session, run_transform_job
 
 def create_crm_customer_session():
     """Create a Spark session for Customer Info transformation"""
@@ -17,7 +17,7 @@ def transform_customer_info(spark):
     try:
         # Define paths with explicit HDFS scheme
         input_path = "hdfs://namenode:9000/raw/source_crm/cust_info.csv"
-        output_path = "hdfs://namenode:9000/transform/source_crm"
+        output_path = "hdfs://namenode:9000/transform/source_crm/cust_info"
         
         print(f"Starting customer info transformation. Reading from: {input_path}")
         
@@ -56,8 +56,9 @@ def transform_customer_info(spark):
         
         # Write transformed data to HDFS
         print(f"Writing data to: {output_path}")
-        input_filename = os.path.basename(input_path) 
-        write_as_single_csv(spark, transformed_df, output_path, input_filename)
+        transformed_df.write.mode("overwrite") \
+            .option("header", "true") \
+            .csv(output_path)
         
         print(f"Transformed customer records")
         return transformed_df

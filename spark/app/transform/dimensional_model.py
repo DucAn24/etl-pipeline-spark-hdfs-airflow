@@ -5,7 +5,7 @@ import traceback
 import os
 import sys
 sys.path.append('/usr/local/spark/app')
-from utils.spark_utils import create_spark_session, write_as_single_csv, run_transform_job
+from utils.spark_utils import create_spark_session, run_transform_job
 
 def create_dim_model_session():
     """Create a Spark session for Dimensional Model"""
@@ -17,9 +17,9 @@ def build_dim_customers(spark):
         print("Building customer dimension...")
         
         # Load source tables from HDFS
-        crm_path = "hdfs://namenode:9000/transform/source_crm/cust_info.csv"
-        erp_cust_path = "hdfs://namenode:9000/transform/source_erp/customers.csv"
-        erp_loc_path = "hdfs://namenode:9000/transform/source_erp/customer_locations.csv"
+        crm_path = "hdfs://namenode:9000/transform/source_crm/cust_info"
+        erp_cust_path = "hdfs://namenode:9000/transform/source_erp/customers"
+        erp_loc_path = "hdfs://namenode:9000/transform/source_erp/customer_locations"
 
         # Load data sources
         try:
@@ -67,8 +67,10 @@ def build_dim_customers(spark):
             raise
         
         # Write dimension table to HDFS
-        output_path = "hdfs://namenode:9000/transform/dim"
-        write_as_single_csv(spark, dim_customers, output_path, "dim_customer.csv")
+        output_path = "hdfs://namenode:9000/transform/dim/dim_customer"
+        dim_customers.write.mode("overwrite") \
+            .option("header", "true") \
+            .csv(output_path)
         
         return dim_customers
         
@@ -83,8 +85,8 @@ def build_dim_products(spark):
         print("Building product dimension...")
         
         # Load source tables from HDFS
-        crm_path = "hdfs://namenode:9000/transform/source_crm/prd_info.csv"
-        erp_path = "hdfs://namenode:9000/transform/source_erp/product_categories.csv"
+        crm_path = "hdfs://namenode:9000/transform/source_crm/prd_info"
+        erp_path = "hdfs://namenode:9000/transform/source_erp/product_categories"
         
         # Load data sources
         try:
@@ -129,8 +131,10 @@ def build_dim_products(spark):
             raise
         
         # Write dimension table to HDFS
-        output_path = "hdfs://namenode:9000/transform/dim"
-        write_as_single_csv(spark, dim_products, output_path, "dim_product.csv")
+        output_path = "hdfs://namenode:9000/transform/dim/dim_product"
+        dim_products.write.mode("overwrite") \
+            .option("header", "true") \
+            .csv(output_path)
         
         return dim_products
         
@@ -145,7 +149,7 @@ def build_fact_sales(spark, dim_customers, dim_products):
         print("Building sales fact table...")
         
         # Load source data from HDFS
-        sales_path = "hdfs://namenode:9000/transform/source_crm/sales_details.csv"
+        sales_path = "hdfs://namenode:9000/transform/source_crm/sales_details"
         
         # Load sales data
         try:
@@ -182,8 +186,10 @@ def build_fact_sales(spark, dim_customers, dim_products):
             raise
         
         # Write fact table to HDFS
-        output_path = "hdfs://namenode:9000/transform/fact"
-        write_as_single_csv(spark, fact_sales, output_path, "fact_sales.csv")
+        output_path = "hdfs://namenode:9000/transform/fact/fact_sales"
+        fact_sales.write.mode("overwrite") \
+            .option("header", "true") \
+            .csv(output_path)
         
         return fact_sales
     except Exception as e:

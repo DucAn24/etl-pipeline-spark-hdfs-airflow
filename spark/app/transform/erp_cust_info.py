@@ -3,7 +3,7 @@ import os
 import traceback
 import sys
 sys.path.append('/usr/local/spark/app')
-from utils.spark_utils import create_spark_session, write_as_single_csv, run_transform_job
+from utils.spark_utils import create_spark_session, run_transform_job
 
 def create_erp_customer_session():
     """Create a Spark session for ERP Customer Info transformation"""
@@ -19,7 +19,7 @@ def transform_customers(spark):
     try:
         # Define paths
         input_path = "hdfs://namenode:9000/raw/source_erp/customers.csv"
-        output_path = "hdfs://namenode:9000/transform/source_erp"
+        output_path = "hdfs://namenode:9000/transform/source_erp/customers"
         
         print(f"Starting customers transformation. Reading from: {input_path}")
         
@@ -51,8 +51,9 @@ def transform_customers(spark):
         
         # Write transformed data
         print(f"Writing to output path: {output_path}")
-        input_filename = os.path.basename(input_path) 
-        write_as_single_csv(spark, transformed_df, output_path, input_filename)
+        transformed_df.write.mode("overwrite") \
+            .option("header", "true") \
+            .csv(output_path)
 
         print(f"Transformed customers data processed")
         return transformed_df

@@ -21,7 +21,7 @@ def load_dim_customer(spark, jdbc_url, jdbc_properties):
         print("Loading customer dimension to PostgreSQL...")
         
         # Path to dimension table in HDFS
-        hdfs_path = "hdfs://namenode:9000/transform/dim/dim_customer.csv"
+        hdfs_path = "hdfs://namenode:9000/transform/dim/dim_customer"
         
         # Read dimension from HDFS
         print(f"Reading customer dimension from: {hdfs_path}")
@@ -67,7 +67,7 @@ def load_dim_product(spark, jdbc_url, jdbc_properties):
         print("Loading product dimension to PostgreSQL...")
         
         # Path to dimension table in HDFS
-        hdfs_path = "hdfs://namenode:9000/transform/dim/dim_product.csv"
+        hdfs_path = "hdfs://namenode:9000/transform/dim/dim_product"
         
         # Read dimension from HDFS
         print(f"Reading product dimension from: {hdfs_path}")
@@ -113,7 +113,7 @@ def load_fact_sales(spark, jdbc_url, jdbc_properties):
         print("Loading sales fact table to PostgreSQL...")
         
         # Path to fact table in HDFS
-        hdfs_path = "hdfs://namenode:9000/transform/fact/fact_sales.csv"
+        hdfs_path = "hdfs://namenode:9000/transform/fact/fact_sales"
         
         # Read fact table from HDFS
         print(f"Reading sales fact table from: {hdfs_path}")
