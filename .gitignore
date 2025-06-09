@@ -1,0 +1,345 @@
+# ===================================
+# Python
+# ===================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+
+# Translations
+*.mo
+*.pot
+
+# Django stuff:
+*.log
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+
+# Flask stuff:
+instance/
+.webassets-cache
+
+# Scrapy stuff:
+.scrapy
+
+# Sphinx documentation
+docs/_build/
+
+# PyBuilder
+target/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+*.ipynb
+
+# IPython
+profile_default/
+ipython_config.py
+
+# pyenv
+.python-version
+
+# pipenv
+#   According to pypa/pipenv#598, it is recommended to include Pipfile.lock in version control.
+#   However, in case of collaboration, if having platform-specific dependencies or dependencies
+#   having no cross-platform support, pipenv may install dependencies that don't work, or not
+#   install all needed dependencies.
+#Pipfile.lock
+
+# PEP 582; used by e.g. github.com/David-OConnor/pyflow
+__pypackages__/
+
+# Celery stuff
+celerybeat-schedule
+celerybeat.pid
+
+# SageMath parsed files
+*.sage.py
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Spyder project settings
+.spyderproject
+.spyproject
+
+# Rope project settings
+.ropeproject
+
+# mkdocs documentation
+/site
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Pyre type checker
+.pyre/
+
+# ===================================
+# Data Files & Datasets
+# ===================================
+# CSV files (usually large and should be tracked via DVC or external storage)
+datasets/source_crm/*.csv
+datasets/source_erp/*.csv
+datasets/*.csv
+*.csv
+
+# Parquet files
+*.parquet
+
+# JSON data files (exclude config files)
+data/*.json
+datasets/*.json
+
+# Excel files
+*.xlsx
+*.xls
+
+# Text data files
+*.txt
+!requirements.txt
+!README.txt
+
+# Compressed data files
+*.zip
+*.tar.gz
+*.rar
+*.7z
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# ===================================
+# Spark & Hadoop
+# ===================================
+# Spark logs
+spark-warehouse/
+derby.log
+metastore_db/
+
+# Spark checkpoints
+checkpoint/
+checkpoints/
+
+# Spark event logs
+spark-events/
+
+# Hadoop logs
+hadoop-logs/
+
+# HDFS metadata
+.dfs/
+
+# Spark temporary files
+spark-*-org.apache.spark.sql.hive.thriftserver.SparkSQLCLIDriver-*.tmp
+
+# Spark history server
+spark-history/
+
+# ===================================
+# Airflow
+# ===================================
+# Airflow logs
+airflow-logs/
+logs/
+
+# Airflow configuration
+airflow.cfg
+webserver_config.py
+
+# Airflow database
+airflow.db
+unittests.cfg
+
+# Airflow PID files
+*.pid
+
+# Scheduler logs
+scheduler.log
+
+# ===================================
+# Docker
+# ===================================
+# Docker volumes
+docker-volumes/
+volumes/
+
+# Docker override files
+docker-compose.override.yml
+docker-compose.override.yaml
+
+# Docker environment files
+.dockerenv
+
+# ===================================
+# IDEs & Editors
+# ===================================
+# VSCode
+.vscode/
+*.code-workspace
+
+# PyCharm
+.idea/
+*.iws
+*.iml
+*.ipr
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# Vim
+*.swp
+*.swo
+*~
+
+# Emacs
+*~
+\#*\#
+/.emacs.desktop
+/.emacs.desktop.lock
+*.elc
+auto-save-list
+tramp
+.\#*
+
+# ===================================
+# Operating System
+# ===================================
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+.AppleDB
+.AppleDesktop
+Network Trash Folder
+Temporary Items
+.apdisk
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+*.tmp
+*.temp
+Desktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+*.lnk
+
+# Linux
+*~
+.fuse_hidden*
+.directory
+.Trash-*
+.nfs*
+
+# ===================================
+# Certificates & Keys
+# ===================================
+*.pem
+*.key
+*.crt
+*.cert
+*.p12
+*.pfx
+
+# ===================================
+# Temporary & Generated Files
+# ===================================
+# Temporary directories
+tmp/
+temp/
+.tmp/
+
+# Generated reports
+reports/
+output/
+
+# Backup files
+*.bak
+*.backup
+*.old
+
+# ===================================
+# Project Specific
+# ===================================
+# Local development overrides
+local_config.py
+config_local.py
+
+# Test outputs
+test_output/
+test_results/
+
+# Performance monitoring
+*.prof
+
+# Custom ignore patterns for this project
+# (Add your specific patterns here) 
