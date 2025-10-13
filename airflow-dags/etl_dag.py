@@ -92,7 +92,7 @@ with DAG(
             deploy_mode="client",
             executor_memory="1G",
             executor_cores=1,
-            num_executors=1,
+            num_executors=2,
             dag=dag
         )
         
@@ -105,7 +105,7 @@ with DAG(
             deploy_mode="client",
             executor_memory="1G",
             executor_cores=1,
-            num_executors=1,
+            num_executors=2,
             dag=dag
         )
         
@@ -118,7 +118,7 @@ with DAG(
             deploy_mode="client",
             executor_memory="1G",
             executor_cores=1,
-            num_executors=1,
+            num_executors=2,
             dag=dag
         )
         
@@ -132,7 +132,7 @@ with DAG(
             deploy_mode="client",
             executor_memory="1G",
             executor_cores=1,
-            num_executors=1,
+            num_executors=2,
             dag=dag
         )
         
@@ -145,7 +145,7 @@ with DAG(
             deploy_mode="client",
             executor_memory="1G",
             executor_cores=1,
-            num_executors=1,
+            num_executors=2,
             dag=dag
         )
         
@@ -158,7 +158,7 @@ with DAG(
             deploy_mode="client",
             executor_memory="1G",
             executor_cores=1,
-            num_executors=1,
+            num_executors=2,
             dag=dag
         )
         
@@ -172,7 +172,7 @@ with DAG(
             deploy_mode="client",
             executor_memory="1G",
             executor_cores=1,
-            num_executors=1,
+            num_executors=2,
             dag=dag
         )
         
@@ -191,7 +191,7 @@ with DAG(
             deploy_mode="client",
             executor_memory="1G",
             executor_cores=1,
-            num_executors=1,
+            num_executors=2,
             jars="/usr/local/spark/resources/jars/postgresql-42.7.5.jar",
             dag=dag
         )
