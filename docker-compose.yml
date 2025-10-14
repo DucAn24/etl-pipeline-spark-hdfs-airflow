@@ -3,8 +3,8 @@ x-airflow-common:
   # In order to add custom dependencies or upgrade provider distributions you can use your extended image.
   # Comment the image line, place your Dockerfile in the directory where you placed the docker-compose.yaml
   # and uncomment the "build" line below, Then run `docker-compose build` to build the images.
-  # image: ${AIRFLOW_IMAGE_NAME:-apache/airflow:3.1.0}
-  build: .
+  image: ${AIRFLOW_IMAGE_NAME:-apache/airflow:3.1.0}
+  # build: .
   environment:
     &airflow-common-env
     AIRFLOW__CORE__EXECUTOR: LocalExecutor
@@ -12,7 +12,7 @@ x-airflow-common:
     AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
     AIRFLOW__CORE__FERNET_KEY: ''
     AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: 'true'
-    AIRFLOW__CORE__LOAD_EXAMPLES: 'true'
+    AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
     AIRFLOW__CORE__EXECUTION_API_SERVER_URL: 'http://airflow-apiserver:8080/execution/'
     # yamllint disable rule:line-length
     # Use simple http server on scheduler for health checks
@@ -38,8 +38,8 @@ x-airflow-common:
 services:
   namenode:
     build:
-      context: ..
-      dockerfile: docker/hadoop-config/hadoop-namenode.Dockerfile
+      context: .
+      dockerfile: ./docker/hadoop-config/hadoop-namenode.Dockerfile
     container_name: namenode
     hostname: namenode
     environment:
@@ -60,8 +60,8 @@ services:
 
   datanode:
     build:
-      context: ..
-      dockerfile: docker/hadoop-config/hadoop-datanode.Dockerfile
+      context: .
+      dockerfile: ./docker/hadoop-config/hadoop-datanode.Dockerfile
     container_name: datanode
     hostname: datanode
     ports:
@@ -89,7 +89,7 @@ services:
       - ../spark/app:/usr/local/spark/app
       - ../spark/resources:/usr/local/spark/resources
       - ../datasets/source_crm:/usr/local/datasets/source_crm
-      - ../requirements.txt:/usr/local/requirements.txt
+      - ./requirements.txt:/usr/local/requirements.txt
     networks:
       - hadoop_network
     command: >
