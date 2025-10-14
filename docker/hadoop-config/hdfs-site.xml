@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?xml-stylesheet type="text/xsl" href="configuration.xsl"?>
+<configuration>
+    <!-- NameNode configuration -->
+    <property>
+        <name>dfs.namenode.name.dir</name>
+        <value>file:///hadoop/dfs/name</value>
+        <description>Path on the local filesystem where the NameNode stores the namespace and transaction logs</description>
+    </property>
+    
+    <!-- DataNode configuration -->
+    <property>
+        <name>dfs.datanode.data.dir</name>
+        <value>file:///hadoop/dfs/data</value>
+        <description>Comma separated list of paths on the local filesystem where DataNode stores blocks</description>
+    </property>
+    
+    <!-- Replication factor -->
+    <property>
+        <name>dfs.replication</name>
+        <value>1</value>
+        <description>Default block replication. Set to 1 for single-node setup</description>
+    </property>
+    
+    <!-- Block size -->
+    <property>
+        <name>dfs.blocksize</name>
+        <value>134217728</value>
+        <description>The default block size for new files (128MB)</description>
+    </property>
+    
+    <!-- WebHDFS enabled -->
+    <property>
+        <name>dfs.webhdfs.enabled</name>
+        <value>true</value>
+        <description>Enable WebHDFS (REST API) in NameNode and DataNode</description>
+    </property>
+    
+    <!-- Permissions -->
+    <property>
+        <name>dfs.permissions.enabled</name>
+        <value>false</value>
+        <description>If true, enable permission checking in HDFS</description>
+    </property>
+    
+    <!-- NameNode Web UI port -->
+    <property>
+        <name>dfs.namenode.http-address</name>
+        <value>0.0.0.0:9870</value>
+        <description>The address and port the NameNode web UI listens on</description>
+    </property>
+    
+    <!-- DataNode Web UI port -->
+    <property>
+        <name>dfs.datanode.http.address</name>
+        <value>0.0.0.0:9864</value>
+        <description>The datanode http server address and port</description>
+    </property>
+    
+    <!-- DataNode IPC port -->
+    <property>
+        <name>dfs.datanode.ipc.address</name>
+        <value>0.0.0.0:9867</value>
+        <description>The datanode ipc server address and port</description>
+    </property>
+    
+    <!-- DataNode address -->
+    <property>
+        <name>dfs.datanode.address</name>
+        <value>0.0.0.0:9866</value>
+        <description>The datanode server address and port for data transfer</description>
+    </property>
+    
+    <!-- Support for appending to files -->
+    <property>
+        <name>dfs.support.append</name>
+        <value>true</value>
+        <description>Allow appending to hdfs files</description>
+    </property>
+</configuration>
+
