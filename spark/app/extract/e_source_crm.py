@@ -6,8 +6,8 @@ from hdfs import InsecureClient
 def extract_crm_data(**kwargs):
     """Extract CRM data directly to HDFS from source CSVs"""
     try:
-        # Source directory containing CSV files
-        source_dir = "/usr/local/datasets/source_crm"
+        
+        source_dir = "/opt/airflow/datasets/source_crm"
         
         # HDFS destination path
         hdfs_path_crm = "/raw/source_crm"
