@@ -1,6 +1,3 @@
-"""
-Utility functions for HDFS operations
-"""
 from hdfs import InsecureClient
 
 # Common HDFS paths
@@ -38,23 +35,22 @@ def check_hdfs_data(**kwargs):
         # Create HDFS client
         hdfs_client = get_hdfs_client()
         
-        # Check CRM data
         print("\nChecking CRM data...")
         try:
             crm_files = hdfs_client.list(HDFS_PATHS["raw_crm"])
-            print(f"✓ CRM data found: {crm_files}")
+            print(f"CRM data found: {crm_files}")
         except Exception as e:
-            print(f"✗ CRM data not found: {str(e)}")
+            print(f"CRM data not found: {str(e)}")
             ensure_hdfs_directory(hdfs_client, HDFS_PATHS["raw_crm"])
             print(f"Created directory: {HDFS_PATHS['raw_crm']}")
         
-        # Check ERP data
+
         print("\nChecking ERP data...")
         try:
             erp_files = hdfs_client.list(HDFS_PATHS["raw_erp"])
-            print(f"✓ ERP data found: {erp_files}")
+            print(f"ERP data found: {erp_files}")
         except Exception as e:
-            print(f"✗ ERP data not found: {str(e)}")
+            print(f"ERP data not found: {str(e)}")
             ensure_hdfs_directory(hdfs_client, HDFS_PATHS["raw_erp"])
             print(f"Created directory: {HDFS_PATHS['raw_erp']}")
         
