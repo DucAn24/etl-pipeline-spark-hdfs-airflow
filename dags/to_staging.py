@@ -4,16 +4,12 @@ from airflow.providers.standard.operators.empty import EmptyOperator
 from datetime import datetime, timedelta
 import sys
 import os
-sys.path.append('/usr/local/spark/app')
-
+sys.path.append('/opt/airflow/spark_app')
 
 from utils.hdfs_utils import check_hdfs_data
 from extract.e_source_crm import extract_crm_data
 from extract.e_source_erp import extract_erp_data
 
-###############################################
-# DAG Definition
-###############################################
 default_args = {
     'owner': 'airflow',
     'depends_on_past': False,

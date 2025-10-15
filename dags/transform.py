@@ -4,15 +4,9 @@ from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk import TaskGroup
 from datetime import datetime, timedelta
 
-###############################################
-# Parameters
-###############################################
 spark_master = "spark://spark:7077"
 spark_conn_id = "spark_default"  # Using spark_default to match the connection in Airflow UI
 
-###############################################
-# DAG Definition
-###############################################
 default_args = {
     'owner': 'airflow',
     'depends_on_past': False,
@@ -36,100 +30,98 @@ with DAG(
     # CRM transformations
     transform_crm_cust_info = SparkSubmitOperator(
         task_id="transform_crm_cust_info",
-        application="/usr/local/spark/app/transform/crm_cust_info.py",
+        application="/opt/airflow/spark_app/transform/crm_cust_info.py",
         name="transform-crm-customer-info",
         conn_id=spark_conn_id,
         verbose=True,
         deploy_mode="client",
         executor_memory="1G",
         executor_cores=1,
-        num_executors=1,
+        num_executors=2,
         dag=dag
     )
 
     transform_crm_prd_info = SparkSubmitOperator(
         task_id="transform_crm_prd_info",
-        application="/usr/local/spark/app/transform/crm_prd_info.py",
+        application="/opt/airflow/spark_app/transform/crm_prd_info.py",
         name="transform-crm-product-info",
         conn_id=spark_conn_id,
         verbose=True,
         deploy_mode="client",
         executor_memory="1G",
         executor_cores=1,
-        num_executors=1,
+        num_executors=2,
         dag=dag
     )
 
     transform_crm_sales_details = SparkSubmitOperator(
         task_id="transform_crm_sales_details",
-        application="/usr/local/spark/app/transform/crm_sales_details.py",
+        application="/opt/airflow/spark_app/transform/crm_sales_details.py",
         name="transform-crm-sales-details",
         conn_id=spark_conn_id,
         verbose=True,
         deploy_mode="client",
         executor_memory="1G",
         executor_cores=1,
-        num_executors=1,
+        num_executors=2,
         dag=dag
     )
     
     # ERP transformations
     transform_erp_cust_info = SparkSubmitOperator(
         task_id="transform_erp_cust_info",
-        application="/usr/local/spark/app/transform/erp_cust_info.py",
+        application="/opt/airflow/spark_app/transform/erp_cust_info.py",
         name="transform-erp-customer-info",
         conn_id=spark_conn_id,
         verbose=True,
         deploy_mode="client",
         executor_memory="1G",
         executor_cores=1,
-        num_executors=1,
+        num_executors=2,
         dag=dag
     )
 
     transform_erp_cust_loc = SparkSubmitOperator(
         task_id="transform_erp_cust_loc",
-        application="/usr/local/spark/app/transform/erp_cust_loc.py",
+        application="/opt/airflow/spark_app/transform/erp_cust_loc.py",
         name="transform-erp-customer-location",
         conn_id=spark_conn_id,
         verbose=True,
         deploy_mode="client",
         executor_memory="1G",
         executor_cores=1,
-        num_executors=1,
+        num_executors=2,
         dag=dag
     )
 
     transform_erp_prd_category = SparkSubmitOperator(
         task_id="transform_erp_prd_category",
-        application="/usr/local/spark/app/transform/erp_prd_category.py",
+        application="/opt/airflow/spark_app/transform/erp_prd_category.py",
         name="transform-erp-product-category",
         conn_id=spark_conn_id,
         verbose=True,
         deploy_mode="client",
         executor_memory="1G",
         executor_cores=1,
-        num_executors=1,
+        num_executors=2,
         dag=dag
     )
     
     # Dimensional model creation - depends on all other transformations
     create_dimensional_model = SparkSubmitOperator(
         task_id="create_dimensional_model",
-        application="/usr/local/spark/app/transform/dimensional_model.py",
+        application="/opt/airflow/spark_app/transform/dimensional_model.py",
         name="create-dimensional-model",
         conn_id=spark_conn_id,
         verbose=True,
         deploy_mode="client",
         executor_memory="1G",
         executor_cores=1,
-        num_executors=1,
+        num_executors=2,
         dag=dag
     )
     
     end = EmptyOperator(task_id="end", dag=dag)
-    
-    # Set task dependencies
     
     # Group CRM transformations
     start >> [transform_crm_cust_info, transform_crm_prd_info, transform_crm_sales_details]

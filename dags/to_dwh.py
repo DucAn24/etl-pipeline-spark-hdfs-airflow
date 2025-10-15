@@ -4,15 +4,9 @@ from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.bash import BashOperator
 from datetime import datetime, timedelta
 
-###############################################
-# Parameters
-###############################################
 spark_master = "spark://spark:7077"
 spark_conn_id = "spark_default"  # Using spark_default to match the connection in Airflow UI
 
-###############################################
-# DAG Definition
-###############################################
 default_args = {
     'owner': 'airflow',
     'depends_on_past': False,

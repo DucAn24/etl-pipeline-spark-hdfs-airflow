@@ -7,15 +7,13 @@ from airflow.providers.standard.operators.bash import BashOperator
 from datetime import datetime, timedelta
 import sys
 import os
-sys.path.append('/usr/local/spark/app')
+
+sys.path.append('/opt/airflow/spark_app')
 
 from utils.hdfs_utils import check_hdfs_data
 from extract.e_source_crm import extract_crm_data
 from extract.e_source_erp import extract_erp_data
 
-###############################################
-# Parameters
-###############################################
 spark_master = "spark://spark:7077"
 spark_conn_id = "spark_default"  # Using spark_default to match the connection in Airflow UI
 
@@ -24,9 +22,6 @@ extract_dir = "/usr/local/spark/resources/data/"
 hdfs_path_crm = "/raw/source_crm"
 hdfs_path_erp = "/raw/source_erp"
 
-###############################################
-# DAG Definition
-###############################################
 default_args = {
     "owner": "airflow",
     "depends_on_past": False,
