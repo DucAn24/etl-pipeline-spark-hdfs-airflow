@@ -3,8 +3,8 @@ x-airflow-common:
   # In order to add custom dependencies or upgrade provider distributions you can use your extended image.
   # Comment the image line, place your Dockerfile in the directory where you placed the docker-compose.yaml
   # and uncomment the "build" line below, Then run `docker-compose build` to build the images.
-  image: ${AIRFLOW_IMAGE_NAME:-apache/airflow:3.1.0}
-  # build: .
+  # image: ${AIRFLOW_IMAGE_NAME:-apache/airflow:3.1.0}
+  build: .
   environment:
     &airflow-common-env
     AIRFLOW__CORE__EXECUTOR: LocalExecutor
@@ -29,7 +29,11 @@ x-airflow-common:
     - ${AIRFLOW_PROJ_DIR:-.}/logs:/opt/airflow/logs
     - ${AIRFLOW_PROJ_DIR:-.}/config:/opt/airflow/config
     - ${AIRFLOW_PROJ_DIR:-.}/plugins:/opt/airflow/plugins
+    - ${AIRFLOW_PROJ_DIR:-.}/spark/app:/opt/airflow/spark_app
+    - ${AIRFLOW_PROJ_DIR:-.}/datasets:/opt/airflow/datasets
   user: "${AIRFLOW_UID:-50000}:0"
+  networks:
+    - hadoop_network
   depends_on:
     &airflow-common-depends-on
     postgres:
@@ -86,9 +90,9 @@ services:
     container_name: python3
     working_dir: /usr/local/spark/app
     volumes:
-      - ../spark/app:/usr/local/spark/app
-      - ../spark/resources:/usr/local/spark/resources
-      - ../datasets/source_crm:/usr/local/datasets/source_crm
+      - ./spark/app:/usr/local/spark/app
+      - ./spark/resources:/usr/local/spark/resources
+      - ./datasets/source_crm:/usr/local/datasets/source_crm
       - ./requirements.txt:/usr/local/requirements.txt
     networks:
       - hadoop_network
@@ -97,7 +101,7 @@ services:
           pip install -r /usr/local/requirements.txt &&
           tail -f /dev/null
         "
-      # Spark with 1 master and 2 workers
+
   spark:
     image: apache/spark:4.0.0-python3
     user: root
@@ -109,8 +113,8 @@ services:
       - SPARK_MASTER_PORT=7077
       - SPARK_MASTER_WEBUI_PORT=8080
     volumes:
-      - ../spark/app:/opt/spark/app
-      - ../spark/resources:/opt/spark/resources
+      - ./spark/app:/opt/spark/app
+      - ./spark/resources:/opt/spark/resources
     ports:
       - "8181:8080"
       - "7077:7077"
@@ -127,8 +131,8 @@ services:
       - SPARK_WORKER_CORES=1
       - SPARK_MASTER=spark://spark:7077
     volumes:
-      - ../spark/app:/opt/spark/app
-      - ../spark/resources:/opt/spark/resources
+      - ./spark/app:/opt/spark/app
+      - ./spark/resources:/opt/spark/resources
     depends_on:
       - spark
     networks:
@@ -144,8 +148,8 @@ services:
       - SPARK_WORKER_CORES=1
       - SPARK_MASTER=spark://spark:7077
     volumes:
-      - ../spark/app:/opt/spark/app
-      - ../spark/resources:/opt/spark/resources
+      - ./spark/app:/opt/spark/app
+      - ./spark/resources:/opt/spark/resources
     depends_on:
       - spark
     networks:
@@ -163,8 +167,8 @@ services:
       - "3306:3306"
     volumes:
       - mysql_data:/var/lib/mysql
-      - ./mysql-init:/docker-entrypoint-initdb.d  
-      - ../datasets/source_erp:/var/lib/mysql-files  
+      - ./docker/mysql-init:/docker-entrypoint-initdb.d  
+      - ./datasets/source_erp:/var/lib/mysql-files  
     networks:
       - hadoop_network
 
@@ -180,7 +184,7 @@ services:
       - "5432:5432"
     volumes:
       - postgres-db-volume:/var/lib/postgresql/data
-      - ./postgres-init:/docker-entrypoint-initdb.d 
+      - ./docker/postgres-init:/docker-entrypoint-initdb.d 
     healthcheck:
       test: ["CMD", "pg_isready", "-U", "airflow"]
       interval: 10s
