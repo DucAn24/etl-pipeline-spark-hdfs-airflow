@@ -2,7 +2,8 @@ from pyspark.sql.functions import col, trim, when, regexp_replace, lit
 import traceback
 import os
 import sys
-sys.path.append('/usr/local/spark/app')
+# Add the app directory to path for local utils import
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from utils.spark_utils import create_spark_session, run_transform_job
 
 def create_erp_location_session():

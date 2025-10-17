@@ -5,7 +5,8 @@ import traceback
 
 import os
 import sys
-sys.path.append('/usr/local/spark/app')
+# Add the app directory to path for local utils import
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from utils.spark_utils import create_spark_session, run_transform_job
 
 def create_crm_customer_session():
