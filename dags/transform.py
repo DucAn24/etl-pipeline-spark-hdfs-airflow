@@ -13,7 +13,7 @@ default_args = {
     'start_date': datetime(2024, 4, 8),
     'email_on_failure': False,
     'email_on_retry': False,
-    'retries': 1,
+    'retries': 0,
     'retry_delay': timedelta(minutes=1),
 }
 
@@ -38,6 +38,7 @@ with DAG(
         executor_memory="1G",
         executor_cores=1,
         num_executors=2,
+        py_files="/opt/airflow/spark_app/utils/spark_utils.py",
         dag=dag
     )
 
@@ -51,6 +52,7 @@ with DAG(
         executor_memory="1G",
         executor_cores=1,
         num_executors=2,
+        py_files="/opt/airflow/spark_app/utils/spark_utils.py",
         dag=dag
     )
 
@@ -64,6 +66,7 @@ with DAG(
         executor_memory="1G",
         executor_cores=1,
         num_executors=2,
+        py_files="/opt/airflow/spark_app/utils/spark_utils.py",
         dag=dag
     )
     
@@ -78,6 +81,7 @@ with DAG(
         executor_memory="1G",
         executor_cores=1,
         num_executors=2,
+        py_files="/opt/airflow/spark_app/utils/spark_utils.py",
         dag=dag
     )
 
@@ -91,6 +95,7 @@ with DAG(
         executor_memory="1G",
         executor_cores=1,
         num_executors=2,
+        py_files="/opt/airflow/spark_app/utils/spark_utils.py",
         dag=dag
     )
 
@@ -104,6 +109,7 @@ with DAG(
         executor_memory="1G",
         executor_cores=1,
         num_executors=2,
+        py_files="/opt/airflow/spark_app/utils/spark_utils.py",
         dag=dag
     )
     
@@ -118,6 +124,7 @@ with DAG(
         executor_memory="1G",
         executor_cores=1,
         num_executors=2,
+        py_files="/opt/airflow/spark_app/utils/spark_utils.py",
         dag=dag
     )
     
