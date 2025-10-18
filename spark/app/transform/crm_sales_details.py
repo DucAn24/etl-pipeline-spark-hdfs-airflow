@@ -3,24 +3,19 @@ from pyspark.sql.types import DateType, DoubleType
 import traceback
 import os
 import sys
-# Add the app directory to path for local utils import
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from utils.spark_utils import create_spark_session, run_transform_job
 
 def create_crm_sales_session():
-    """Create a Spark session for Sales Details transformation"""
     return create_spark_session("Transform Sales Details")
 
 def transform_sales_details(spark):
-    """Transform sales details data"""
     try:
-        # Define paths with explicit HDFS scheme
         input_path = "hdfs://namenode:9000/raw/source_crm/sales_details.csv"
         output_path = "hdfs://namenode:9000/transform/source_crm/sales_details"
-        
+
         print(f"Starting sales details transformation. Reading from: {input_path}")
-        
-        # Read sales details data from HDFS
         try:
             df = spark.read.option("header", "true") \
                 .option("inferSchema", "true") \
@@ -31,15 +26,13 @@ def transform_sales_details(spark):
             print(f"ERROR reading sales details data: {str(e)}")
             print(f"Stack trace: {traceback.format_exc()}")
             raise
-            
-        # Apply transformations
-        # First handle date fields
+
         transformed_df = df \
-            .withColumn("sls_order_dt_str", 
+            .withColumn("sls_order_dt_str",
                     when((col("sls_order_dt") == 0) | (length(col("sls_order_dt").cast("string")) != 8), None)
                     .otherwise(
                         concat(
-                            col("sls_order_dt").cast("string").substr(1, 4), 
+                            col("sls_order_dt").cast("string").substr(1, 4),
                             lit("-"),
                             col("sls_order_dt").cast("string").substr(5, 2),
                             lit("-"),
@@ -47,11 +40,11 @@ def transform_sales_details(spark):
                         )
                     )) \
             .withColumn("sls_order_dt", col("sls_order_dt_str").cast(DateType())) \
-            .withColumn("sls_ship_dt_str", 
+            .withColumn("sls_ship_dt_str",
                     when((col("sls_ship_dt") == 0) | (length(col("sls_ship_dt").cast("string")) != 8), None)
                     .otherwise(
                         concat(
-                            col("sls_ship_dt").cast("string").substr(1, 4), 
+                            col("sls_ship_dt").cast("string").substr(1, 4),
                             lit("-"),
                             col("sls_ship_dt").cast("string").substr(5, 2),
                             lit("-"),
@@ -59,11 +52,11 @@ def transform_sales_details(spark):
                         )
                     )) \
             .withColumn("sls_ship_dt", col("sls_ship_dt_str").cast(DateType())) \
-            .withColumn("sls_due_dt_str", 
+            .withColumn("sls_due_dt_str",
                     when((col("sls_due_dt") == 0) | (length(col("sls_due_dt").cast("string")) != 8), None)
                     .otherwise(
                         concat(
-                            col("sls_due_dt").cast("string").substr(1, 4), 
+                            col("sls_due_dt").cast("string").substr(1, 4),
                             lit("-"),
                             col("sls_due_dt").cast("string").substr(5, 2),
                             lit("-"),
@@ -71,8 +64,7 @@ def transform_sales_details(spark):
                         )
                     )) \
             .withColumn("sls_due_dt", col("sls_due_dt_str").cast(DateType()))
-            
-        # Then compute sales values
+
         transformed_df = transformed_df \
             .withColumn("calculated_sales", col("sls_quantity") * abs(col("sls_price"))) \
             .withColumn("sls_sales", 
@@ -86,14 +78,13 @@ def transform_sales_details(spark):
                         when(col("sls_quantity") != 0, col("sls_sales") / col("sls_quantity")).otherwise(lit(None)))
                     .otherwise(col("sls_price"))) \
             .select("sls_ord_num", "sls_prd_key", "sls_cust_id", "sls_order_dt", 
-                    "sls_ship_dt", "sls_due_dt", "sls_sales", "sls_quantity", "sls_price")
-        
-        # Write transformed data
+                    "sls_ship_dt", "sls_due_dt", "sls_sales", "sls_quantity", "sls_price"        )
+
         print(f"Writing data to: {output_path}")
         transformed_df.write.mode("overwrite") \
             .option("header", "true") \
             .csv(output_path)
-        
+
         print(f"Transformed sales detail records")
         return transformed_df
     except Exception as e:

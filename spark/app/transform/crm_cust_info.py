@@ -5,24 +5,19 @@ import traceback
 
 import os
 import sys
-# Add the app directory to path for local utils import
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from utils.spark_utils import create_spark_session, run_transform_job
 
 def create_crm_customer_session():
-    """Create a Spark session for Customer Info transformation"""
     return create_spark_session("Transform Customer Info")
 
 def transform_customer_info(spark):
-    """Transform customer information data"""
     try:
-        # Define paths with explicit HDFS scheme
         input_path = "hdfs://namenode:9000/raw/source_crm/cust_info.csv"
         output_path = "hdfs://namenode:9000/transform/source_crm/cust_info"
-        
+
         print(f"Starting customer info transformation. Reading from: {input_path}")
-        
-        # Read customer info data from HDFS
         try:
             df = spark.read.option("header", "true") \
                 .option("inferSchema", "true") \
@@ -33,11 +28,9 @@ def transform_customer_info(spark):
             print(f"ERROR reading customer info data: {str(e)}")
             print(f"Stack trace: {traceback.format_exc()}")
             raise
-        
-        # Create a window spec for finding the latest record per customer
+
         window_spec = Window.partitionBy("cst_id").orderBy(col("cst_create_date").desc())
         
-        # Apply transformations
         transformed_df = df \
             .withColumn("flag_last", row_number().over(window_spec)) \
             .filter(col("flag_last") == 1) \
@@ -53,14 +46,13 @@ def transform_customer_info(spark):
                     .when(upper(trim(col("cst_gndr"))) == "M", "Male")
                     .otherwise("n/a")) \
             .select("cst_id", "cst_key", "cst_firstname", "cst_lastname", 
-                    "cst_marital_status", "cst_gndr", "cst_create_date")
-        
-        # Write transformed data to HDFS
+                    "cst_marital_status", "cst_gndr", "cst_create_date"        )
+
         print(f"Writing data to: {output_path}")
         transformed_df.write.mode("overwrite") \
             .option("header", "true") \
             .csv(output_path)
-        
+
         print(f"Transformed customer records")
         return transformed_df
     except Exception as e:

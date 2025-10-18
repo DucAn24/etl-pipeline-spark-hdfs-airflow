@@ -2,12 +2,11 @@ from pyspark.sql.functions import col, trim, when, regexp_replace, lit
 import traceback
 import os
 import sys
-# Add the app directory to path for local utils import
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from utils.spark_utils import create_spark_session, run_transform_job
 
 def create_erp_location_session():
-    """Create a Spark session for ERP Customer Location transformation"""
     return create_spark_session("Transform ERP Customer Location")
 
 def transform_customer_locations(spark):
@@ -21,13 +20,12 @@ def transform_customer_locations(spark):
       - Others -> Keep as is (trimmed)
     """
     try:
-        # Define paths
+
         input_path = "hdfs://namenode:9000/raw/source_erp/customer_locations.csv"
         output_path = "hdfs://namenode:9000/transform/source_erp/customer_locations"
         
         print(f"Starting customer locations transformation. Reading from: {input_path}")
         
-        # Read source data
         try:
             df = spark.read.csv(input_path, header=True)
             print(f"Successfully read data, count: {df.count()}")
@@ -37,7 +35,6 @@ def transform_customer_locations(spark):
             print(f"Stack trace: {traceback.format_exc()}")
             raise
         
-        # Apply transformations
         transformed_df = df.withColumn(
             "cid",
             regexp_replace(col("cid"), "-", "")
@@ -49,7 +46,6 @@ def transform_customer_locations(spark):
             .otherwise(trim(col("cntry")))
         )
         
-        # Write transformed data
         print(f"Writing to output path: {output_path}")
         transformed_df.write.mode("overwrite") \
             .option("header", "true") \

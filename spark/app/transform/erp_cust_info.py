@@ -2,12 +2,11 @@ from pyspark.sql.functions import col, regexp_replace, when, upper, trim, curren
 import os
 import traceback
 import sys
-# Add the app directory to path for local utils import
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from utils.spark_utils import create_spark_session, run_transform_job
 
 def create_erp_customer_session():
-    """Create a Spark session for ERP Customer Info transformation"""
     return create_spark_session("Transform ERP Customer Info")
 
 def transform_customers(spark):
@@ -18,13 +17,12 @@ def transform_customers(spark):
     - Normalize gender values (M/MALE -> Male, F/FEMALE -> Female, others -> n/a)
     """
     try:
-        # Define paths
+
         input_path = "hdfs://namenode:9000/raw/source_erp/customers.csv"
         output_path = "hdfs://namenode:9000/transform/source_erp/customers"
         
         print(f"Starting customers transformation. Reading from: {input_path}")
         
-        # Read source data
         try:
             df = spark.read.csv(input_path, header=True)
             print(f"Successfully read data, count: {df.count()}")
@@ -34,7 +32,6 @@ def transform_customers(spark):
             print(f"Stack trace: {traceback.format_exc()}")
             raise
         
-        # Apply transformations
         transformed_df = df.withColumn(
             "cid",
             when(col("cid").isNotNull(), regexp_replace(col("cid"), "^NAS", "")).otherwise(None)
@@ -50,7 +47,6 @@ def transform_customers(spark):
             .otherwise(lit("n/a"))
         )
         
-        # Write transformed data
         print(f"Writing to output path: {output_path}")
         transformed_df.write.mode("overwrite") \
             .option("header", "true") \

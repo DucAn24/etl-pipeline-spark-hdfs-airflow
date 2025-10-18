@@ -3,25 +3,20 @@ from pyspark.sql.window import Window
 import os
 import traceback
 import sys
-# Add the app directory to path for local utils import
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from utils.spark_utils import create_spark_session, run_transform_job
 
 def create_crm_product_session():
-    """Create a Spark session for Product Info transformation"""
     return create_spark_session("Transform Product Info")
 
 def transform_product_info(spark):
-    """Transform product information data"""
     try:
-        # Define paths with explicit HDFS scheme
         input_path = "hdfs://namenode:9000/raw/source_crm/prd_info.csv"
         output_path = "hdfs://namenode:9000/transform/source_crm/prd_info"
-        
+
         print(f"Starting product info transformation. Reading from: {input_path}")
-        
-        # Read product info data from HDFS
         try:
             df = spark.read.option("header", "true") \
                 .option("inferSchema", "true") \
@@ -32,11 +27,9 @@ def transform_product_info(spark):
             print(f"ERROR reading product info data: {str(e)}")
             print(f"Stack trace: {traceback.format_exc()}")
             raise
-        
-        # Create a window spec for finding the next start date per product key
+
         window_spec = Window.partitionBy("prd_key").orderBy("prd_start_dt")
         
-        # Apply transformations
         transformed_df = df \
             .withColumn("cat_id", replace(substring(col("prd_key"), 1, 5), lit("-"), lit("_"))) \
             .withColumn("prd_key", substring(col("prd_key"), 7, 100)) \
@@ -51,14 +44,13 @@ def transform_product_info(spark):
             .withColumn("next_start_dt", lead("prd_start_dt", 1).over(window_spec)) \
             .withColumn("prd_end_dt", expr("date_sub(next_start_dt, 1)")) \
             .select("prd_id", "cat_id", "prd_key", "prd_nm", "prd_cost", "prd_line", 
-                    "prd_start_dt", "prd_end_dt")
-        
-        # Write transformed data
+                    "prd_start_dt", "prd_end_dt"        )
+
         print(f"Writing data to: {output_path}")
         transformed_df.write.mode("overwrite") \
             .option("header", "true") \
             .csv(output_path)
-            
+
         print(f"Transformed product records")
         return transformed_df
     except Exception as e:

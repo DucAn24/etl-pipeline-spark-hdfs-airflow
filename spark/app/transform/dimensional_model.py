@@ -4,16 +4,14 @@ from pyspark.sql.window import Window
 import traceback
 import os
 import sys
-# Add the app directory to path for local utils import
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from utils.spark_utils import create_spark_session, run_transform_job
 
 def create_dim_model_session():
-    """Create a Spark session for Dimensional Model"""
     return create_spark_session("Build Dimensional Model")
 
 def build_dim_customers(spark):
-    """Build customer dimension from CRM and ERP sources"""
     try:
         print("Building customer dimension...")
         
@@ -67,7 +65,6 @@ def build_dim_customers(spark):
             print(f"Stack trace: {traceback.format_exc()}")
             raise
         
-        # Write dimension table to HDFS
         output_path = "hdfs://namenode:9000/transform/dim/dim_customer"
         dim_customers.write.mode("overwrite") \
             .option("header", "true") \
@@ -81,7 +78,6 @@ def build_dim_customers(spark):
         raise
 
 def build_dim_products(spark):
-    """Build product dimension from CRM and ERP sources"""
     try:
         print("Building product dimension...")
         
@@ -107,7 +103,6 @@ def build_dim_products(spark):
         # Filter out historical data
         active_products = crm_prd_info.filter(crm_prd_info.prd_end_dt.isNull())
         
-        # Join and build dimension
         try:
             dim_products = active_products \
                 .join(erp_px_cat_g1v2, 
@@ -131,7 +126,6 @@ def build_dim_products(spark):
             print(f"Stack trace: {traceback.format_exc()}")
             raise
         
-        # Write dimension table to HDFS
         output_path = "hdfs://namenode:9000/transform/dim/dim_product"
         dim_products.write.mode("overwrite") \
             .option("header", "true") \
@@ -145,14 +139,11 @@ def build_dim_products(spark):
         raise
 
 def build_fact_sales(spark, dim_customers, dim_products):
-    """Build fact sales table with dimension foreign keys"""
     try:
         print("Building sales fact table...")
         
-        # Load source data from HDFS
         sales_path = "hdfs://namenode:9000/transform/source_crm/sales_details"
         
-        # Load sales data
         try:
             sales_details = spark.read.csv(sales_path, header=True, inferSchema=True)
             print(f"Loaded sales data: {sales_details.count()} rows")
@@ -161,7 +152,6 @@ def build_fact_sales(spark, dim_customers, dim_products):
             print(f"Stack trace: {traceback.format_exc()}")
             raise
         
-        # Join with dimension tables
         try:
             fact_sales = sales_details \
                 .join(dim_products, 
@@ -186,7 +176,6 @@ def build_fact_sales(spark, dim_customers, dim_products):
             print(f"Stack trace: {traceback.format_exc()}")
             raise
         
-        # Write fact table to HDFS
         output_path = "hdfs://namenode:9000/transform/fact/fact_sales"
         fact_sales.write.mode("overwrite") \
             .option("header", "true") \
@@ -199,13 +188,10 @@ def build_fact_sales(spark, dim_customers, dim_products):
         raise
 
 def build_dimensional_model(spark):
-    """Build the complete dimensional model"""
     try:
-        # Build dimensions first
         dim_customers = build_dim_customers(spark)
         dim_products = build_dim_products(spark)
         
-        # Build fact table using dimensions
         fact_sales = build_fact_sales(spark, dim_customers, dim_products)
         
         print("Dimensional model built successfully")
