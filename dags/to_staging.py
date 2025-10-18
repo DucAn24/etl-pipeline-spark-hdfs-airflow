@@ -13,7 +13,6 @@ from extract.e_source_erp import extract_erp_data
 default_args = {
     'owner': 'airflow',
     'depends_on_past': False,
-    'start_date': datetime(2024, 4, 8),
     'email_on_failure': False,
     'email_on_retry': False,
     'retries': 1,
@@ -28,7 +27,6 @@ with DAG(
     catchup=False,
 ) as dag:
 
-    # Define tasks
     start = EmptyOperator(task_id="start", dag=dag)
     
     extract_crm_task = PythonOperator(
@@ -51,5 +49,4 @@ with DAG(
     
     end = EmptyOperator(task_id="end", dag=dag)
     
-    # Set task dependencies
     start >> [extract_crm_task, extract_erp_task] >> verify_hdfs_data >> end

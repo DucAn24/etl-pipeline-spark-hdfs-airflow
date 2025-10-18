@@ -10,10 +10,9 @@ spark_conn_id = "spark_default"  # Using spark_default to match the connection i
 default_args = {
     'owner': 'airflow',
     'depends_on_past': False,
-    'start_date': datetime(2024, 4, 8),
     'email_on_failure': False,
     'email_on_retry': False,
-    'retries': 1,
+    'retries': 0,
     'retry_delay': timedelta(minutes=1),
 }
 
@@ -25,25 +24,26 @@ with DAG(
     catchup=False,
 ) as dag:
 
-    # Tasks
     start = EmptyOperator(task_id="start", dag=dag)
     
-    # Loading data from HDFS to PostgreSQL using Spark
     load_to_dwh = SparkSubmitOperator(
         task_id="load_to_dwh",
-        application="/usr/local/spark/app/load/load_dwh.py",
+        application="/opt/airflow/spark_app/load/load_dwh.py",
         name="load-to-data-warehouse",
         conn_id=spark_conn_id,
         verbose=True,
         deploy_mode="client",
-        executor_memory="1G",
+        executor_memory="512M",
         executor_cores=1,
         num_executors=1,
-        jars="/usr/local/spark/resources/jars/postgresql-42.7.5.jar",
+        jars="/opt/spark/resources/jars/postgresql-42.7.5.jar",
+        driver_class_path="/opt/spark/resources/jars/postgresql-42.7.5.jar",
+        conf={
+            "spark.executor.extraClassPath": "/opt/spark/resources/jars/postgresql-42.7.5.jar"
+        },
         dag=dag
     )
     
-    # Validate loaded data
     validate_data = BashOperator(
         task_id="validate_data",
         bash_command="""

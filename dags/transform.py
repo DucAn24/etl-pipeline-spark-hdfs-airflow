@@ -5,12 +5,11 @@ from airflow.sdk import TaskGroup
 from datetime import datetime, timedelta
 
 spark_master = "spark://spark:7077"
-spark_conn_id = "spark_default"  # Using spark_default to match the connection in Airflow UI
+spark_conn_id = "spark_default" 
 
 default_args = {
     'owner': 'airflow',
     'depends_on_past': False,
-    'start_date': datetime(2024, 4, 8),
     'email_on_failure': False,
     'email_on_retry': False,
     'retries': 0,
@@ -35,8 +34,8 @@ with DAG(
         conn_id=spark_conn_id,
         verbose=True,
         deploy_mode="client",
-        executor_memory="1G",
-        executor_cores=1,
+        executor_memory="512M",
+        executor_cores=2,
         num_executors=2,
         py_files="/opt/airflow/spark_app/utils/spark_utils.py",
         dag=dag
@@ -49,8 +48,8 @@ with DAG(
         conn_id=spark_conn_id,
         verbose=True,
         deploy_mode="client",
-        executor_memory="1G",
-        executor_cores=1,
+        executor_memory="512M",
+        executor_cores=2,
         num_executors=2,
         py_files="/opt/airflow/spark_app/utils/spark_utils.py",
         dag=dag
@@ -63,8 +62,8 @@ with DAG(
         conn_id=spark_conn_id,
         verbose=True,
         deploy_mode="client",
-        executor_memory="1G",
-        executor_cores=1,
+        executor_memory="512M",
+        executor_cores=2,
         num_executors=2,
         py_files="/opt/airflow/spark_app/utils/spark_utils.py",
         dag=dag
@@ -78,8 +77,8 @@ with DAG(
         conn_id=spark_conn_id,
         verbose=True,
         deploy_mode="client",
-        executor_memory="1G",
-        executor_cores=1,
+        executor_memory="512M",
+        executor_cores=2,
         num_executors=2,
         py_files="/opt/airflow/spark_app/utils/spark_utils.py",
         dag=dag
@@ -92,8 +91,8 @@ with DAG(
         conn_id=spark_conn_id,
         verbose=True,
         deploy_mode="client",
-        executor_memory="1G",
-        executor_cores=1,
+        executor_memory="512M",
+        executor_cores=2,
         num_executors=2,
         py_files="/opt/airflow/spark_app/utils/spark_utils.py",
         dag=dag
@@ -106,14 +105,13 @@ with DAG(
         conn_id=spark_conn_id,
         verbose=True,
         deploy_mode="client",
-        executor_memory="1G",
-        executor_cores=1,
+        executor_memory="512M",
+        executor_cores=2,
         num_executors=2,
         py_files="/opt/airflow/spark_app/utils/spark_utils.py",
         dag=dag
     )
     
-    # Dimensional model creation - depends on all other transformations
     create_dimensional_model = SparkSubmitOperator(
         task_id="create_dimensional_model",
         application="/opt/airflow/spark_app/transform/dimensional_model.py",
@@ -121,8 +119,8 @@ with DAG(
         conn_id=spark_conn_id,
         verbose=True,
         deploy_mode="client",
-        executor_memory="1G",
-        executor_cores=1,
+        executor_memory="512M",
+        executor_cores=2,
         num_executors=2,
         py_files="/opt/airflow/spark_app/utils/spark_utils.py",
         dag=dag
@@ -135,10 +133,8 @@ with DAG(
     
     # Group ERP transformations
     start >> [transform_erp_cust_info, transform_erp_cust_loc, transform_erp_prd_category]
-    
-    # All individual transforms must complete before dimensional model is created
+
     [transform_crm_cust_info, transform_crm_prd_info, transform_crm_sales_details,
      transform_erp_cust_info, transform_erp_cust_loc, transform_erp_prd_category] >> create_dimensional_model
     
-    # Final step
     create_dimensional_model >> end
