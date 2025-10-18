@@ -24,14 +24,26 @@ x-airflow-common:
     _PIP_ADDITIONAL_REQUIREMENTS: ${_PIP_ADDITIONAL_REQUIREMENTS:-}
     # The following line can be used to set a custom config file, stored in the local config folder
     AIRFLOW_CONFIG: '/opt/airflow/config/airflow.cfg'
+    # Optimize Airflow for lower resource usage
+    AIRFLOW__CORE__PARALLELISM: '8'
+    AIRFLOW__CORE__MAX_ACTIVE_TASKS_PER_DAG: '6'
+    AIRFLOW__CORE__MAX_ACTIVE_RUNS_PER_DAG: '1'
+    AIRFLOW__SCHEDULER__PARSING_PROCESSES: '1'
+    AIRFLOW__SCHEDULER__MIN_FILE_PROCESS_INTERVAL: '60'
   volumes:
     - ${AIRFLOW_PROJ_DIR:-.}/dags:/opt/airflow/dags
     - ${AIRFLOW_PROJ_DIR:-.}/logs:/opt/airflow/logs
     - ${AIRFLOW_PROJ_DIR:-.}/config:/opt/airflow/config
     - ${AIRFLOW_PROJ_DIR:-.}/plugins:/opt/airflow/plugins
     - ${AIRFLOW_PROJ_DIR:-.}/spark/app:/opt/airflow/spark_app
+    - ${AIRFLOW_PROJ_DIR:-.}/spark/resources:/opt/spark/resources
     - ${AIRFLOW_PROJ_DIR:-.}/datasets:/opt/airflow/datasets
   user: "${AIRFLOW_UID:-50000}:0"
+  deploy:
+    resources:
+      limits:
+        cpus: '2.0'
+        memory: 2G
   networks:
     - hadoop_network
   depends_on:
@@ -85,22 +97,27 @@ services:
       retries: 5
       start_period: 30s
 
-  python:
-    image: python:3.10
-    container_name: python3
-    working_dir: /usr/local/spark/app
-    volumes:
-      - ./spark/app:/usr/local/spark/app
-      - ./spark/resources:/usr/local/spark/resources
-      - ./datasets/source_crm:/usr/local/datasets/source_crm
-      - ./requirements.txt:/usr/local/requirements.txt
-    networks:
-      - hadoop_network
-    command: >
-        bash -c "
-          pip install -r /usr/local/requirements.txt &&
-          tail -f /dev/null
-        "
+  # python:
+  #   image: python:3.10
+  #   container_name: python3
+  #   working_dir: /usr/local/spark/app
+  #   volumes:
+  #     - ./spark/app:/usr/local/spark/app
+  #     - ./spark/resources:/usr/local/spark/resources
+  #     - ./datasets/source_crm:/usr/local/datasets/source_crm
+  #     - ./requirements.txt:/usr/local/requirements.txt
+  #   networks:
+  #     - hadoop_network
+  #   deploy:
+  #     resources:
+  #       limits:
+  #         cpus: '0.5'
+  #         memory: 512M
+  #   command: >
+  #       bash -c "
+  #         pip install -r /usr/local/requirements.txt &&
+  #         sleep infinity
+  #       "
 
   spark:
     image: apache/spark:4.0.0-python3
@@ -127,8 +144,8 @@ services:
     container_name: spark-worker-1
     command: /opt/spark/bin/spark-class org.apache.spark.deploy.worker.Worker spark://spark:7077
     environment:
-      - SPARK_WORKER_MEMORY=1G
-      - SPARK_WORKER_CORES=1
+      - SPARK_WORKER_MEMORY=2G
+      - SPARK_WORKER_CORES=2
       - SPARK_MASTER=spark://spark:7077
     volumes:
       - ./spark/app:/opt/spark/app
@@ -144,8 +161,8 @@ services:
     container_name: spark-worker-2
     command: /opt/spark/bin/spark-class org.apache.spark.deploy.worker.Worker spark://spark:7077
     environment:
-      - SPARK_WORKER_MEMORY=1G
-      - SPARK_WORKER_CORES=1
+      - SPARK_WORKER_MEMORY=2G
+      - SPARK_WORKER_CORES=2
       - SPARK_MASTER=spark://spark:7077
     volumes:
       - ./spark/app:/opt/spark/app
