@@ -3,14 +3,7 @@ import traceback
 from pyspark.sql import SparkSession
 
 def create_spark_session(app_name):
-    """Create a Spark session with standard configuration
-    
-    Args:
-        app_name (str): Name of the Spark application
-        
-    Returns:
-        SparkSession: Configured Spark session
-    """
+
     print(f"Creating Spark session for {app_name}...")
     return SparkSession.builder \
         .appName(app_name) \
@@ -21,12 +14,7 @@ def create_spark_session(app_name):
         .getOrCreate()
 
 def run_transform_job(create_session_fn, transform_fn):
-    """Run a Spark transform job with standard error handling
-    
-    Args:
-        create_session_fn: Function to create Spark session
-        transform_fn: Function to perform the transformation
-    """
+
     spark = None
     try:
         spark = create_session_fn()
@@ -40,6 +28,7 @@ def run_transform_job(create_session_fn, transform_fn):
         result = transform_fn(spark)
         print("Transformation completed successfully")
         return result
+        
     except Exception as e:
         print(f"ERROR in transformation job: {str(e)}")
         print(f"Stack trace: {traceback.format_exc()}")

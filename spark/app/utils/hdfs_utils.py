@@ -11,7 +11,6 @@ HDFS_PATHS = {
 }
 
 def get_hdfs_client(namenode_url='http://namenode:9870', user='root'):
-    """Create and return HDFS client"""
     try:
         return InsecureClient(namenode_url, user=user)
     except Exception as e:
@@ -19,7 +18,6 @@ def get_hdfs_client(namenode_url='http://namenode:9870', user='root'):
         raise
 
 def ensure_hdfs_directory(hdfs_client, path):
-    """Ensure HDFS directory exists"""
     try:
         hdfs_client.makedirs(path)
         return True
@@ -28,11 +26,9 @@ def ensure_hdfs_directory(hdfs_client, path):
         return False
 
 def check_hdfs_data(**kwargs):
-    """Check if data was successfully loaded to HDFS"""
     try:
         print("Checking HDFS data availability...")
         
-        # Create HDFS client
         hdfs_client = get_hdfs_client()
         
         print("\nChecking CRM data...")

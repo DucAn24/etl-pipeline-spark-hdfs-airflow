@@ -4,26 +4,21 @@ import sys
 from pyspark.sql.functions import col
 
 def create_spark_session():
-    """Create a Spark session"""
-    print("Creating Spark session for Data Warehouse Load...")
     return SparkSession.builder \
         .appName("Load to Data Warehouse") \
         .master("spark://spark:7077") \
         .config("spark.hadoop.fs.defaultFS", "hdfs://namenode:9000") \
         .config("spark.hadoop.mapreduce.fileoutputcommitter.algorithm.version", "2") \
         .config("spark.hadoop.user.name", "root") \
-        .config("spark.jars", "/usr/local/spark/resources/jars/postgresql-42.7.5.jar") \
+        .config("spark.jars", "/opt/spark/resources/jars/postgresql-42.7.5.jar") \
         .getOrCreate()
 
 def load_dim_customer(spark, jdbc_url, jdbc_properties):
-    """Load customer dimension from HDFS to PostgreSQL"""
     try:
         print("Loading customer dimension to PostgreSQL...")
         
-        # Path to dimension table in HDFS
         hdfs_path = "hdfs://namenode:9000/transform/dim/dim_customer"
         
-        # Read dimension from HDFS
         print(f"Reading customer dimension from: {hdfs_path}")
         try:
             dim_customer = spark.read.csv(hdfs_path, header=True, inferSchema=True)
@@ -35,11 +30,9 @@ def load_dim_customer(spark, jdbc_url, jdbc_properties):
             print(f"Stack trace: {traceback.format_exc()}")
             raise
         
-        # Write to PostgreSQL
         table_name = "dim_customer"
         print(f"Writing customer dimension to PostgreSQL table: {table_name}")
         try:
-            # Create table if not exists in PostgreSQL
             dim_customer.write \
                 .format("jdbc") \
                 .option("url", jdbc_url) \
@@ -62,14 +55,11 @@ def load_dim_customer(spark, jdbc_url, jdbc_properties):
         return False
 
 def load_dim_product(spark, jdbc_url, jdbc_properties):
-    """Load product dimension from HDFS to PostgreSQL"""
     try:
         print("Loading product dimension to PostgreSQL...")
         
-        # Path to dimension table in HDFS
         hdfs_path = "hdfs://namenode:9000/transform/dim/dim_product"
         
-        # Read dimension from HDFS
         print(f"Reading product dimension from: {hdfs_path}")
         try:
             dim_product = spark.read.csv(hdfs_path, header=True, inferSchema=True)
@@ -81,11 +71,9 @@ def load_dim_product(spark, jdbc_url, jdbc_properties):
             print(f"Stack trace: {traceback.format_exc()}")
             raise
         
-        # Write to PostgreSQL
         table_name = "dim_product"
         print(f"Writing product dimension to PostgreSQL table: {table_name}")
         try:
-            # Create table if not exists in PostgreSQL
             dim_product.write \
                 .format("jdbc") \
                 .option("url", jdbc_url) \
@@ -108,14 +96,11 @@ def load_dim_product(spark, jdbc_url, jdbc_properties):
         return False
 
 def load_fact_sales(spark, jdbc_url, jdbc_properties):
-    """Load sales fact table from HDFS to PostgreSQL"""
     try:
         print("Loading sales fact table to PostgreSQL...")
         
-        # Path to fact table in HDFS
         hdfs_path = "hdfs://namenode:9000/transform/fact/fact_sales"
         
-        # Read fact table from HDFS
         print(f"Reading sales fact table from: {hdfs_path}")
         try:
             fact_sales = spark.read.csv(hdfs_path, header=True, inferSchema=True)
@@ -127,15 +112,12 @@ def load_fact_sales(spark, jdbc_url, jdbc_properties):
             print(f"Stack trace: {traceback.format_exc()}")
             raise
         
-        # Write to PostgreSQL
         table_name = "fact_sales"
         print(f"Writing sales fact table to PostgreSQL table: {table_name}")
         try:
-            # Ensure proper column types for fact table
             fact_sales = fact_sales.withColumn("product_key", col("product_key").cast("integer"))
             fact_sales = fact_sales.withColumn("customer_key", col("customer_key").cast("integer"))
             
-            # Create table if not exists in PostgreSQL
             fact_sales.write \
                 .format("jdbc") \
                 .option("url", jdbc_url) \
@@ -158,17 +140,13 @@ def load_fact_sales(spark, jdbc_url, jdbc_properties):
         return False
 
 def create_db_schema(spark, jdbc_url, jdbc_properties):
-    """Create database schema in PostgreSQL if not exists"""
     try:
         print("Creating database schema in PostgreSQL...")
-        
-        # Create a temporary connection to execute schema creation
+
         schema_name = "dwh"
         
-        # Create a dataframe with a single row
         df = spark.createDataFrame([("1",)], ["dummy"])
         
-        # Create schema if not exists
         df.write \
             .format("jdbc") \
             .option("url", jdbc_url) \
@@ -190,7 +168,6 @@ def create_db_schema(spark, jdbc_url, jdbc_properties):
 
 
 def main():
-    """Main function to load data from HDFS to PostgreSQL data warehouse"""
     spark = None
     
     try:
@@ -198,13 +175,11 @@ def main():
         print("Starting data warehouse loading process...")
         spark = create_spark_session()
         
-        # Print Spark and Hadoop info
         print(f"Spark version: {spark.version}")
         print(f"Spark UI: {spark.sparkContext.uiWebUrl}")
         print(f"HDFS default FS: {spark._jsc.hadoopConfiguration().get('fs.defaultFS')}")
         print(f"Active workers: {spark.sparkContext._jsc.sc().getExecutorMemoryStatus().size() - 1}")
         
-        # PostgreSQL connection details
         jdbc_url = "jdbc:postgresql://postgres_dw:5432/dwh"
         jdbc_properties = {
             "user": "airflow",
@@ -212,22 +187,22 @@ def main():
             "driver": "org.postgresql.Driver"
         }
         
-        # Create database schema if not exists
         create_db_schema(spark, jdbc_url, jdbc_properties)
         
-        # Load dimensions first (for referential integrity)
         success_dim_customer = load_dim_customer(spark, jdbc_url, jdbc_properties)
         success_dim_product = load_dim_product(spark, jdbc_url, jdbc_properties)
         
         if success_dim_customer and success_dim_product:
-            # Then load fact table
             success_fact_sales = load_fact_sales(spark, jdbc_url, jdbc_properties)
             if success_fact_sales:
                 print("Successfully loaded all tables to PostgreSQL data warehouse")
+                sys.exit(0)
             else:
-                raise Exception("Failed to load sales fact table")
+                print("Failed to load sales fact table")
+                sys.exit(1)
         else:
-            raise Exception("Failed to load dimension tables")
+            print("Failed to load dimension tables")
+            sys.exit(1)
     
     except Exception as e:
         print(f"ERROR in data warehouse loading: {str(e)}")
