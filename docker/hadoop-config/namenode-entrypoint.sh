@@ -17,3 +17,5 @@ fi
 echo "Starting NameNode..."
 # Start NameNode directly without calling the default entrypoint
 exec hdfs namenode
+
+
